@@ -1,19 +1,45 @@
 version: "3"
 
 vars:
-  DOTFILES_DIR: "{{.HOME}}/.dotfiles"
   REPO: "https://github.com/nick-hildebrant-etas/taskfiles"
+  TASKFILES_DIR: "{{.HOME}}/.taskfiles"
+  HOME_DIR: "{{.TASKFILES_DIR}}/home"
   GIT_EMAIL: "you@example.com"
   GIT_NAME: "Your Name"
 
 tasks:
   default:
-    desc: Show available tasks
+    desc: Checkout repo and link dotfiles
     cmds:
-      - task --list
+      - task: checkout
+      - task: link
+
+  checkout:
+    desc: Clone repo to {{.TASKFILES_DIR}} (or pull if already cloned)
+    cmds:
+      - |
+        if [ -d "{{.TASKFILES_DIR}}/.git" ]; then
+          echo "Updating {{.TASKFILES_DIR}}..."
+          git -C "{{.TASKFILES_DIR}}" pull
+        else
+          echo "Cloning {{.REPO}} to {{.TASKFILES_DIR}}..."
+          git clone "{{.REPO}}" "{{.TASKFILES_DIR}}"
+        fi
+
+  link:
+    desc: Symlink files from {{.HOME_DIR}} into $HOME
+    cmds:
+      - |
+        for f in "{{.HOME_DIR}}"/* "{{.HOME_DIR}}"/.*; do
+          name="$(basename "$f")"
+          [ "$name" = "." ] || [ "$name" = ".." ] && continue
+          [ -e "$f" ] || continue
+          ln -sf "$f" "{{.HOME}}/$name"
+          echo "Linked $name"
+        done
 
   install:
-    desc: Run full setup
+    desc: Full setup (git-config + brew + link)
     cmds:
       - task: git-config
       - task: brew
@@ -34,22 +60,11 @@ tasks:
         fi
 
   brew:
-    desc: Install Homebrew packages
+    desc: Install Homebrew packages from Brewfile
     preconditions:
       - sh: command -v brew
         msg: "Homebrew not found — install from https://brew.sh"
     cmds:
-      - brew bundle --file=Brewfile
+      - brew bundle --file="{{.TASKFILES_DIR}}/Brewfile"
     sources:
-      - Brewfile
-
-  link:
-    desc: Symlink dotfiles into $HOME
-    cmds:
-      - |
-        for f in dotfiles/.*; do
-          name="$(basename "$f")"
-          [ "$name" = "." ] || [ "$name" = ".." ] && continue
-          ln -sf "$(pwd)/$f" "${HOME}/$name"
-          echo "Linked $name"
-        done
+      - "{{.TASKFILES_DIR}}/Brewfile"
