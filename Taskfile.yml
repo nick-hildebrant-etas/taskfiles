@@ -84,6 +84,16 @@ tasks:
     sources:
       - "{{.brewfile}}"
 
+  tmpd:
+    desc: Create a temp directory and cd into it
+    vars:
+      st_pwd:
+        sh: mktemp -d
+    cmds:
+      - echo "{{.st_pwd}}"
+      - bash -
+    dir: "{{.st_pwd}}"
+
   hooks:
     desc: Copy hooks from {{.hooks_src}} into {{.hooks_dst}}
     cmds:
