@@ -2,109 +2,149 @@
 
 ## What this repo is
 
-A dotfiles + task runner repo managed by [go-task](https://taskfile.dev). It bootstraps a macOS machine: installs packages, symlinks dotfiles into `$HOME`, and manages secrets.
+A dotfiles + task runner repo managed by [go-task](https://taskfile.dev). It bootstraps a macOS machine: installs packages, symlinks dotfiles into `$HOME`, and manages secrets encrypted with SOPS + age.
 
-The repo lives at `~/.taskfiles` after setup. `~/Taskfile.yml` is a symlink into it, so running `task` from `$HOME` (or any subdirectory that walks up to it) uses this repo's taskfile directly.
+The repo lives at `~/.taskfiles` after setup. `~/Taskfile.yml` is a symlink to `~/.taskfiles/Taskfile.yml`, so running `task` from `$HOME` (or any subdirectory that walks up to it) uses this repo's taskfile directly.
 
-## How it integrates into the home environment
+---
 
-`task link` symlinks everything in `home/` into `$HOME`, plus explicitly links `~/.taskfiles/Taskfile.yml` → `~/Taskfile.yml`. Any dotfile you want managed goes in `home/`.
+## Bootstrap flow
 
-The `install` task runs in this order — the ordering is load-bearing:
+`install.sh` is the entry point on a fresh machine. It:
+
+1. Installs go-task if absent (via brew, or the official installer into `~/.local/bin`)
+2. Downloads `Taskfile.yml` from GitHub into a temp file
+3. Runs `task default` against the temp file — clones the repo to `~/.taskfiles` and symlinks dotfiles
+
+After that it prints instructions telling the user to restore their age key and run `task install`. It intentionally stops there — secrets setup is a manual step.
+
+Because `install.sh` runs a temp copy of `Taskfile.yml`, `secrets.yml` won't exist alongside it — which is why `includes` uses `optional: true`. The bootstrap only runs `task default` (checkout + link), not `task install`. After `task default` completes, `install.sh` explicitly creates `~/secrets.yml` as a symlink to `~/.taskfiles/secrets.yml`.
+
+**Why `~/secrets.yml` must exist:** `task -g` loads `~/Taskfile.yml` (a symlink), and go-task resolves `./secrets.yml` relative to the symlink's location (`~/`), not its target (`~/.taskfiles/`). Both `install.sh` and `task link` create `~/secrets.yml` to ensure the include resolves correctly.
+
+---
+
+## Home environment integration
+
+`task link` symlinks everything in `home/` into `$HOME`. It also explicitly links `~/.taskfiles/Taskfile.yml` → `~/Taskfile.yml`. Any dotfile you want managed belongs in `home/`.
+
+The `install` task runs in this order — ordering is load-bearing:
 
 1. `brew` — installs packages from `Brewfile`, including `age` and `sops`
-2. `secrets:decrypt` — decrypts `secrets.yaml` → `.env` (requires age key, sops just installed)
-3. `git-config` — reads `GIT_EMAIL`/`GIT_NAME` from `.env`
-4. `link` — symlinks dotfiles
-5. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
+2. `secrets:doctor` — checks all secrets prerequisites; prints actionable help and exits 1 if anything is wrong
+3. `secrets:decrypt` — decrypts `secrets.yaml` → `.env` (requires age key; sops was just installed)
+4. `git-config` — sources `.env` directly in shell and sets `user.email`/`user.name` if unset
+5. `link` — symlinks dotfiles and `~/Taskfile.yml`
+6. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
+
+---
+
+## Variables
+
+All paths are defined as vars — no bare strings in task `cmds`. `secrets.yml` inherits `TASKFILES_DIR` from the parent via go-task's variable scoping.
+
+User-defined vars use `lower_snake_case`. Built-in go-task vars (`{{.HOME}}`, `{{.USER}}`, etc.) remain uppercase as provided by go-task.
+
+**`Taskfile.yml` globals:**
+
+| var | value |
+|---|---|
+| `taskfiles_dir` | `~/.taskfiles` |
+| `home_dir` | `~/.taskfiles/home` |
+| `brewfile` | `~/.taskfiles/Brewfile` |
+| `hooks_src` | `~/.taskfiles/hooks` |
+| `hooks_dst` | `~/.taskfiles/.git/hooks` |
+| `env_file` | `~/.taskfiles/.env` |
+
+**`secrets.yml` vars:**
+
+| var | value |
+|---|---|
+| `age_key_file` | `~/.config/sops/age/keys.txt` |
+| `age_key_dir` | `~/.config/sops/age` |
+| `secrets_file` | `~/.taskfiles/secrets.yaml` |
+| `sops_config` | `~/.taskfiles/.sops.yaml` |
+| `env_file` | `~/.taskfiles/.env` |
+
+---
 
 ## Secrets
 
 Secrets are stored encrypted in `secrets.yaml` using [SOPS](https://github.com/getsops/sops) + [age](https://age-encryption.org). The file is committed to the repo. The plaintext `.env` is gitignored and only exists locally after decryption.
 
-### Key files
+### File inventory
 
 | path | committed | what it is |
 |---|---|---|
 | `secrets.yaml` | yes | SOPS-encrypted secrets |
 | `.sops.yaml` | yes | SOPS config — contains only the age **public** key |
-| `.env` | no | Decrypted plaintext, written by `task secrets:decrypt` |
+| `.env` | no | Decrypted `KEY=value` pairs, written by `task secrets:decrypt` |
 | `~/.config/sops/age/keys.txt` | never | age private key — back this up to a password manager |
 
-### Editing secrets
+### Required secrets
 
-```sh
-task secrets:edit
-```
+At minimum, `secrets.yaml` must contain:
 
-Opens `secrets.yaml` in `$EDITOR`. SOPS decrypts before opening and re-encrypts on save. Never edit `secrets.yaml` directly with a text editor.
-
-### Adding a new secret
-
-1. `task secrets:edit`
-2. Add `NEW_KEY: value` in the editor, save and quit
-3. `task secrets:decrypt` to refresh `.env`
-
-### What secrets are in `.env`
-
-At minimum:
 - `GIT_EMAIL` — used by `task git-config`
 - `GIT_NAME` — used by `task git-config`
 
-Add others as needed. They are available as environment variables in all task shell steps via go-task's `dotenv` directive (loaded from `./.env` relative to the repo root).
+### Diagnosing the setup
 
-**go-task dotenv limitation:** `dotenv` is read once at process startup. If a task writes `.env` during a run, subsequent tasks in the same invocation won't see the new values via `dotenv`. This is why `git-config` explicitly sources `.env` in its shell steps rather than relying on go-task's dotenv mechanism.
+```sh
+task secrets:doctor
+```
+
+Checks sequentially: `age` and `sops` installed, age private key present, `.sops.yaml` not a placeholder, `secrets.yaml` exists and is encrypted, `.env` decrypted with required vars. Each `[FAIL]` line shows the exact fix command. Also runs automatically as step 2 of `task install`.
+
+### Day-to-day secrets workflow
+
+| task | what it does |
+|---|---|
+| `task secrets:edit` | Opens `secrets.yaml` in `$EDITOR`; SOPS decrypts before and re-encrypts on save |
+| `task secrets:decrypt` | Decrypts `secrets.yaml` → `.env` using `sops decrypt --output-type dotenv` |
+| `task secrets:keygen` | Generates a new age key at `~/.config/sops/age/keys.txt`; prints the public key |
+| `task secrets:encrypt-env` | One-time migration: converts an existing `.env` into an encrypted `secrets.yaml` |
+
+Never edit `secrets.yaml` directly with a text editor.
+
+To add a new secret: `task secrets:edit`, add the key, save, then `task secrets:decrypt` to refresh `.env`.
+
+### go-task dotenv limitation
+
+`dotenv` is read once at process startup. If a task writes `.env` during a run (e.g., `secrets:decrypt` inside `task install`), subsequent tasks in the same invocation won't see the new values via `dotenv`. This is why `git-config` explicitly sources `{{.ENV_FILE}}` in its shell steps rather than relying on go-task's dotenv mechanism.
+
+---
 
 ## Age key management
 
-The age private key (`~/.config/sops/age/keys.txt`) must exist before `task secrets:decrypt` can run. It is never committed.
+The age private key (`~/.config/sops/age/keys.txt`) must exist before `task secrets:decrypt` can run. It is never committed. Back it up to a password manager.
 
-### Fresh machine — restoring existing key
+### Restoring an existing key (common case)
 
 ```sh
 mkdir -p ~/.config/sops/age
-# restore keys.txt from your password manager
+# copy keys.txt from your password manager
 chmod 600 ~/.config/sops/age/keys.txt
-task install
+cd ~/.taskfiles && task install
 ```
 
-### Fresh machine — generating a new key
+### Generating a new key (no backup exists)
 
-Only do this if you have no backup. Generating a new key means existing `secrets.yaml` cannot be decrypted by it until the file is re-encrypted.
+Only do this if you have no backup. A new key cannot decrypt the existing `secrets.yaml` until it is re-encrypted.
 
 ```sh
-task secrets:keygen        # prints the new public key
-# 1. Add the public key to .sops.yaml
+cd ~/.taskfiles
+task secrets:keygen
+# 1. Add the printed public key to .sops.yaml
 # 2. On a machine with the OLD key: sops updatekeys secrets.yaml
 # 3. Commit .sops.yaml and the re-encrypted secrets.yaml
 task install
 ```
 
-## Bootstrap flow
-
-`install.sh` is the entry point on a fresh machine. It:
-1. Installs go-task if absent (via brew or the official installer)
-2. Downloads `Taskfile.yml` from GitHub into a temp file
-3. Runs `task default` — which clones the repo and symlinks dotfiles
-
-`install.sh` intentionally stops there. The age key is a manual step. After the key is in place, run `task install` to complete setup.
-
-Because `install.sh` runs a temp copy of `Taskfile.yml`, the `secrets` include (`secrets.yml`) won't exist at that temp path — which is why it's declared `optional: true`. No secrets tasks run during bootstrap.
+---
 
 ## Pre-commit hook
 
-`hooks/pre-commit` blocks committing `secrets.yaml` if it lacks the `sops:` metadata marker that indicates it's encrypted. The hook is installed by `task hooks` (called by `task install`). The source lives in `hooks/` so it's version-controlled; `.git/hooks/` is not tracked.
+`hooks/pre-commit` blocks staging `secrets.yaml` if it lacks the `sops:` metadata marker that SOPS always writes into encrypted files. The hook source is version-controlled in `hooks/`; `task hooks` (called by `task install`) copies it into `.git/hooks/`.
 
-If you see the hook fire unexpectedly, it means `secrets.yaml` lost its encryption — run `sops -e -i secrets.yaml` to re-encrypt before committing.
-
-## Variables
-
-The canonical path variable used throughout both taskfiles:
-
-```
-TASKFILES_DIR: "{{.HOME}}/.taskfiles"
-```
-
-All file references within tasks use this variable. Do not hardcode `~/.taskfiles`.
-
-`secrets.yml` inherits `TASKFILES_DIR` from the parent taskfile via go-task's variable scoping.
+If the hook fires unexpectedly, `secrets.yaml` has lost its encryption — run `sops -e -i secrets.yaml` to re-encrypt before committing.

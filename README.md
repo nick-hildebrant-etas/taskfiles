@@ -44,6 +44,7 @@ task install
 | `task brew` | install Homebrew packages |
 | `task link` | symlink dotfiles into `$HOME` |
 | `task hooks` | install git hooks into `.git/hooks/` |
+| `task secrets:doctor` | check that all secrets prerequisites are met |
 | `task secrets:decrypt` | decrypt `secrets.yaml` into `.env` |
 | `task secrets:edit` | edit secrets in-place (encrypts on save) |
 | `task secrets:keygen` | generate a new age key |

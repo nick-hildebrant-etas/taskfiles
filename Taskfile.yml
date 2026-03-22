@@ -1,17 +1,18 @@
 version: "3"
 
-dotenv:
-  - .env
-
 includes:
   secrets:
     taskfile: ./secrets.yml
     optional: true
 
 vars:
-  REPO: "https://github.com/nick-hildebrant-etas/taskfiles"
-  TASKFILES_DIR: "{{.HOME}}/.taskfiles"
-  HOME_DIR: "{{.TASKFILES_DIR}}/home"
+  repo: "https://github.com/nick-hildebrant-etas/taskfiles"
+  taskfiles_dir: "{{.HOME}}/.taskfiles"
+  home_dir: "{{.taskfiles_dir}}/home"
+  brewfile: "{{.taskfiles_dir}}/Brewfile"
+  hooks_src: "{{.taskfiles_dir}}/hooks"
+  hooks_dst: "{{.taskfiles_dir}}/.git/hooks"
+  env_file: "{{.taskfiles_dir}}/.env"
 
 tasks:
   default:
@@ -21,71 +22,72 @@ tasks:
       - task: link
 
   checkout:
-    desc: Clone repo to {{.TASKFILES_DIR}} (or pull if already cloned)
+    desc: Clone or update repo at {{.taskfiles_dir}}
     cmds:
       - |
-        if [ -d "{{.TASKFILES_DIR}}/.git" ]; then
-          echo "Updating {{.TASKFILES_DIR}}..."
-          git -C "{{.TASKFILES_DIR}}" pull
+        if [ -d "{{.taskfiles_dir}}/.git" ]; then
+          echo "Updating {{.taskfiles_dir}}..."
+          git -C "{{.taskfiles_dir}}" pull
         else
-          echo "Cloning {{.REPO}} to {{.TASKFILES_DIR}}..."
-          git clone "{{.REPO}}" "{{.TASKFILES_DIR}}"
+          echo "Cloning {{.repo}} to {{.taskfiles_dir}}..."
+          git clone "{{.repo}}" "{{.taskfiles_dir}}"
         fi
 
   link:
-    desc: Symlink files from {{.HOME_DIR}} into $HOME, and ~/Taskfile.yml
+    desc: Symlink dotfiles from {{.home_dir}} into {{.HOME}}, and link Taskfile.yml + secrets.yml
     cmds:
       - |
-        for f in "{{.HOME_DIR}}"/* "{{.HOME_DIR}}"/.*; do
+        for f in "{{.home_dir}}"/* "{{.home_dir}}"/.*; do
           name="$(basename "$f")"
           [ "$name" = "." ] || [ "$name" = ".." ] && continue
           [ -e "$f" ] || continue
           ln -sf "$f" "{{.HOME}}/$name"
           echo "Linked $name"
         done
-      - ln -sf "{{.TASKFILES_DIR}}/Taskfile.yml" "{{.HOME}}/Taskfile.yml"
-      - echo "Linked Taskfile.yml"
+      - ln -sf "{{.taskfiles_dir}}/Taskfile.yml" "{{.HOME}}/Taskfile.yml"
+      - ln -sf "{{.taskfiles_dir}}/secrets.yml" "{{.HOME}}/secrets.yml"
+      - echo "Linked Taskfile.yml and secrets.yml"
 
   install:
     desc: Full setup — brew, secrets, git-config, link, hooks
     cmds:
       - task: brew
+      - task: secrets:doctor
       - task: secrets:decrypt
       - task: git-config
       - task: link
       - task: hooks
 
   git-config:
-    desc: Set global git user.name and user.email if unset
+    desc: Set global git user.name and user.email from {{.env_file}}
     cmds:
       - |
-        . "{{.TASKFILES_DIR}}/.env"
+        . "{{.env_file}}"
         if [ -z "$(git config --global user.email)" ]; then
           git config --global user.email "$GIT_EMAIL"
           echo "Set git user.email to $GIT_EMAIL"
         fi
       - |
-        . "{{.TASKFILES_DIR}}/.env"
+        . "{{.env_file}}"
         if [ -z "$(git config --global user.name)" ]; then
           git config --global user.name "$GIT_NAME"
           echo "Set git user.name to $GIT_NAME"
         fi
 
   brew:
-    desc: Install Homebrew packages from Brewfile
+    desc: Install Homebrew packages from {{.brewfile}}
     preconditions:
       - sh: command -v brew
         msg: "Homebrew not found — install from https://brew.sh"
     cmds:
-      - brew bundle --file="{{.TASKFILES_DIR}}/Brewfile"
+      - brew bundle --file="{{.brewfile}}"
     sources:
-      - "{{.TASKFILES_DIR}}/Brewfile"
+      - "{{.brewfile}}"
 
   hooks:
-    desc: Install git hooks from hooks/ into .git/hooks/
+    desc: Copy hooks from {{.hooks_src}} into {{.hooks_dst}}
     cmds:
-      - |
-        mkdir -p "{{.TASKFILES_DIR}}/.git/hooks"
-        cp "{{.TASKFILES_DIR}}/hooks/pre-commit" "{{.TASKFILES_DIR}}/.git/hooks/pre-commit"
-        chmod +x "{{.TASKFILES_DIR}}/.git/hooks/pre-commit"
-        echo "Installed pre-commit hook"
+      - mkdir -p "{{.hooks_dst}}"
+      - cp "{{.hooks_src}}/pre-commit" "{{.hooks_dst}}/pre-commit"
+      - chmod +x "{{.hooks_dst}}/pre-commit"
+      - echo "Installed pre-commit hook"
