@@ -1,0 +1,118 @@
+version: "3"
+
+vars:
+  accounts:
+    - name: personal
+      dir_prefix: "{{.GITHUB_PERSONAL_DIR_PREFIX}}"
+      host_alias: "{{.GITHUB_PERSONAL_HOST_ALIAS}}"
+      url_prefix: "{{.GITHUB_PERSONAL_URL_PREFIX}}"
+      user: "{{.GITHUB_PERSONAL_USER}}"
+      token: "{{.GITHUB_PERSONAL_TOKEN}}"
+      email: "{{.GITHUB_PERSONAL_EMAIL}}"
+      git_name: "{{.GITHUB_PERSONAL_NAME}}"
+    - name: work
+      dir_prefix: "{{.GITHUB_WORK_DIR_PREFIX}}"
+      host_alias: "{{.GITHUB_WORK_HOST_ALIAS}}"
+      url_prefix: "{{.GITHUB_WORK_URL_PREFIX}}"
+      user: "{{.GITHUB_WORK_USER}}"
+      token: "{{.GITHUB_WORK_TOKEN}}"
+      email: "{{.GITHUB_WORK_EMAIL}}"
+      git_name: "{{.GITHUB_WORK_NAME}}"
+
+  repos:
+    - name: taskfiles
+      dir: ~/code/taskfiles
+      url: https://github.com/nick-hildebrant-etas/taskfiles
+    - name: score-baselibs
+      dir: ~/work/score/baselibs
+      url: https://github.com/eclipse-score/baselibs
+
+tasks:
+  git-credentials:
+    desc: Write ~/.netrc, per-account gitconfigs, and gitconfig url/includeIf rewrites from vault secrets
+    silent: true
+    cmds:
+      - |
+        : > ~/.netrc
+        chmod 600 ~/.netrc
+        {{range .accounts}}
+        printf "machine %s\n  login %s\n  password %s\n\n" "{{.host_alias}}" "{{.user}}" "{{.token}}" >> ~/.netrc
+
+        git config --global "url.https://{{.host_alias}}/.insteadOf" "{{.url_prefix}}"
+
+        cfg=~/.gitconfig-{{.name}}
+        printf "[user]\n\temail = %s\n\tname = %s\n" "{{.email}}" "{{.git_name}}" > "$cfg"
+
+        git config --global "includeIf.gitdir:{{.dir_prefix | replace "~" $.HOME}}.path" "$cfg"
+
+        echo "configured: {{.name}} ({{.dir_prefix}})"
+        {{end}}
+
+  pull:
+    desc: Pull latest on all repos (parallel)
+    deps:
+      - for:
+          var: repos
+        task: _git
+        vars:
+          name: "{{.ITEM.name}}"
+          dir: "{{.ITEM.dir}}"
+          git_args: pull
+
+  fetch:
+    desc: Fetch all repos (parallel)
+    deps:
+      - for:
+          var: repos
+        task: _git
+        vars:
+          name: "{{.ITEM.name}}"
+          dir: "{{.ITEM.dir}}"
+          git_args: fetch
+
+  status:
+    desc: Show git status for all repos (parallel)
+    deps:
+      - for:
+          var: repos
+        task: _git
+        vars:
+          name: "{{.ITEM.name}}"
+          dir: "{{.ITEM.dir}}"
+          git_args: status --short
+
+  clone:
+    desc: Clone any repos whose dir does not exist yet (parallel)
+    deps:
+      - for:
+          var: repos
+        task: _clone
+        vars:
+          name: "{{.ITEM.name}}"
+          dir: "{{.ITEM.dir}}"
+          url: "{{.ITEM.url}}"
+
+  _git:
+    internal: true
+    cmds:
+      - |
+        dir="{{.dir | replace "~" .HOME}}"
+        if [ ! -d "$dir/.git" ]; then
+          printf "==> %s: not cloned yet — run: task repos:clone\n" "{{.name}}"
+          exit 1
+        fi
+        printf "\n==> %s\n" "{{.name}}"
+        git -C "$dir" {{.git_args}}
+
+  _clone:
+    internal: true
+    cmds:
+      - |
+        dir="{{.dir | replace "~" .HOME}}"
+        if [ -d "$dir/.git" ]; then
+          printf "==> %s already cloned, skipping\n" "{{.name}}"
+          exit 0
+        fi
+        printf "\n==> cloning %s\n" "{{.name}}"
+        mkdir -p "$(dirname "$dir")"
+        git clone "{{.url}}" "$dir"

@@ -30,7 +30,6 @@ rm -f "${TMPFILE}"
 # Ensure task includes resolve correctly when using 'task -g'.
 # ~/Taskfile.yml is a symlink, so go-task resolves ./secrets.yml relative
 # to ~/ — we create ~/secrets.yml here so it exists before 'task -g install'.
-ln -sf "${TASKFILES_DIR}/secrets.yml" "${HOME}/secrets.yml"
 
 cat <<EOF
 

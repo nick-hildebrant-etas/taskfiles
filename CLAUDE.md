@@ -18,9 +18,9 @@ The repo lives at `~/.taskfiles` after setup. `~/Taskfile.yml` is a symlink to `
 
 After that it prints instructions telling the user to restore their age key and run `task install`. It intentionally stops there — secrets setup is a manual step.
 
-Because `install.sh` runs a temp copy of `Taskfile.yml`, `secrets.yml` won't exist alongside it — which is why `includes` uses `optional: true`. The bootstrap only runs `task default` (checkout + link), not `task install`. After `task default` completes, `install.sh` explicitly creates `~/secrets.yml` as a symlink to `~/.taskfiles/secrets.yml`.
+Because `install.sh` runs a temp copy of `Taskfile.yml`, included taskfiles won't exist alongside it — which is why `includes` uses `optional: true`. The bootstrap only runs `task default` (checkout + link), not `task install`.
 
-**Why `~/secrets.yml` must exist:** `task -g` loads `~/Taskfile.yml` (a symlink), and go-task resolves `./secrets.yml` relative to the symlink's location (`~/`), not its target (`~/.taskfiles/`). Both `install.sh` and `task link` create `~/secrets.yml` to ensure the include resolves correctly.
+**Why includes use absolute paths:** `task -g` loads `~/Taskfile.yml` (a symlink), and go-task resolves relative paths relative to the symlink's location (`~/`), not its target (`~/.taskfiles/`). Includes use `{{.HOME}}/.taskfiles/secrets.yml` so they resolve correctly regardless of how task is invoked. Note: `{{.HOME}}` works directly in include paths, but multi-level expansion (e.g. `{{.taskfiles_dir}}` which itself contains `{{.HOME}}`) does not. Inside `{{range}}` blocks, use `$.HOME` (not `.HOME`) to access root-level vars — `.` is rebound to the current iteration item.
 
 ---
 
@@ -33,7 +33,7 @@ The `install` task runs in this order — ordering is load-bearing:
 1. `brew` — installs packages from `Brewfile`, including `age` and `sops`
 2. `secrets:doctor` — checks all secrets prerequisites; prints actionable help and exits 1 if anything is wrong
 3. `secrets:decrypt` — decrypts `vault.yml` → `.env` (requires age key; sops was just installed)
-4. `git-config` — sources `.env` directly in shell and sets `user.email`/`user.name` if unset
+4. `repos:git-credentials` — writes `~/.netrc`, per-account `~/.gitconfig-<name>` files, and `includeIf`/`url.insteadOf` gitconfig entries
 5. `link` — symlinks dotfiles and `~/Taskfile.yml`
 6. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
 
@@ -89,10 +89,15 @@ Secrets are stored encrypted in `vault.yml` using [SOPS](https://github.com/gets
 
 ### Required secrets
 
-At minimum, `vault.yml` must contain:
+One set of keys per entry in the `accounts:` var in `repos.yml`:
 
-- `GIT_EMAIL` — used by `task git-config`
-- `GIT_NAME` — used by `task git-config`
+- `GITHUB_<ACCOUNT>_USER` — GitHub username
+- `GITHUB_<ACCOUNT>_TOKEN` — GitHub personal access token (`ghp_...`)
+- `GITHUB_<ACCOUNT>_EMAIL` — git commit email for this identity
+- `GITHUB_<ACCOUNT>_NAME` — git display name for this identity
+- `GITHUB_<ACCOUNT>_DIR_PREFIX` — local root dir for this account's repos (e.g. `~/work/`)
+- `GITHUB_<ACCOUNT>_HOST_ALIAS` — virtual hostname for url rewriting (e.g. `work.github.com`)
+- `GITHUB_<ACCOUNT>_URL_PREFIX` — GitHub org URL prefix (e.g. `https://github.com/my-org/`)
 
 ### Diagnosing the setup
 
@@ -110,10 +115,17 @@ Checks sequentially: `age` and `sops` installed, age private key present, `.sops
 | `task secrets:decrypt` | Decrypts `vault.yml` → `.env` using `sops decrypt --output-type dotenv` |
 | `task secrets:keygen` | Generates a new age key at `~/.config/sops/age/keys.txt`; prints the public key |
 | `task secrets:encrypt-env` | One-time migration: converts an existing `.env` into an encrypted `vault.yml` |
+| `task repos:git-credentials` | Writes `~/.netrc` and `~/.gitconfig` url rewrites from vault secrets |
 
 Never edit `vault.yml` directly with a text editor.
 
 To add a new secret: `task secrets:edit`, add the key, save, then `task secrets:decrypt` to refresh `.env`.
+
+### Using vault secrets as go-task template vars
+
+The root `Taskfile.yml` includes `dotenv: [".taskfiles/.env"]`. Once `secrets:decrypt` has been run, all keys from `.env` are available as `{{.VAR_NAME}}` template vars in any task — including those in included taskfiles like `repos.yml`. This is how account config values (`dir_prefix`, `host_alias`, `url_prefix`) are kept out of `repos.yml` and stored encrypted in vault instead.
+
+**Path note:** The path `.taskfiles/.env` is relative to `~/` (where `~/Taskfile.yml` symlink lives). Running `task` directly from `~/.taskfiles/` will not load dotenv, but `task -g` from anywhere and `task` from `~/` both work correctly.
 
 ### go-task dotenv limitation
 

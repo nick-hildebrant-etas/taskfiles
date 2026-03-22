@@ -1,3 +1,17 @@
+GITHUB_PERSONAL_DIR_PREFIX: ENC[AES256_GCM,data:7dO8FLBYbQ==,iv:BBLOVwYF0D03HG64xXpNrA0WsMwIAtUpeQ4CersB7q0=,tag:12M9YNkwEi3aryFOApMdmQ==,type:str]
+GITHUB_PERSONAL_HOST_ALIAS: ENC[AES256_GCM,data:Peg3BufeQndonOI5cMnTUskIrQ==,iv:5EQ4QtBmVLU1ptqaAIyrjFWQ+TNYl+8fdG2qGJanv9w=,tag:WuR1btz54Wur+xOjfmhFLA==,type:str]
+GITHUB_PERSONAL_URL_PREFIX: ENC[AES256_GCM,data:wcvdJ7mEnb+5Wia9FZzvc6PP4v6uazmuCmURQg==,iv:Sy3MTucKSpz33xImM2v1Ho5dgEJzQtl+A18Ks5cL7Ww=,tag:k+BvhcncyKKuPHXcLm4T+g==,type:str]
+GITHUB_PERSONAL_USER: ENC[AES256_GCM,data:PZQlPruRtxk=,iv:G83uq8esqzHki90CpZTwWdT/NX0uXu7csW+ytuRr/Uo=,tag:+Zq/sfpq5uDoNFNx26g/IQ==,type:str]
+GITHUB_PERSONAL_TOKEN: ENC[AES256_GCM,data:nRg2Eg==,iv:CNBTvAM/46ZcCpt/GHX7rySPO6ZxZtQyEuYWmnppeGM=,tag:wsdvDtlhsUlcFDSgH2ukiw==,type:str]
+GITHUB_PERSONAL_EMAIL: ENC[AES256_GCM,data:mC/whGkYn1j5eQj9Z2FroJLWemb7iDir8W5WZJmFT0NujGLdzLaSMC3f,iv:cDoPdkUzLkmKIR3SqUkoC/zgE5M6I6SmU36ANFnCGtg=,tag:N7yPSqqJYy2XVq0XG2r9rg==,type:str]
+GITHUB_PERSONAL_NAME: ENC[AES256_GCM,data:rgrl05eL30qp,iv:ekdUihjzmyTy59QeBd5qH9Q0rXRy3t84mKLYeWFcB2U=,tag:aaJ/U86Iw8SS9MXU0jWbkA==,type:str]
+GITHUB_WORK_DIR_PREFIX: ENC[AES256_GCM,data:pmxtUDIccA==,iv:hgcXJ/6dg45RuYD8n7w2lEmJ3GhySENOK3t8+VTis3w=,tag:6v7b7jPB02duHvW9akRAFQ==,type:str]
+GITHUB_WORK_HOST_ALIAS: ENC[AES256_GCM,data:kUuLbWUcXY9jVEOfb0lf,iv:DU+DB5alKif30XNSImSpQPdzj8I7lUSWM7uv87DPQzY=,tag:lEzqDSR8+IUuJL/T+i56aA==,type:str]
+GITHUB_WORK_URL_PREFIX: ENC[AES256_GCM,data:5AwGQZh+ArSkNr8bvoRxfoRWzBqJf11NNeVOgnu9Lu6PvsVhJ5QJEw==,iv:5VLZmmzeK3pGe47vcRGaixC0NWVuM0PmH6ySPuDWNBQ=,tag:faml6DA/01tCcoQZDRfWzQ==,type:str]
+GITHUB_WORK_USER: ENC[AES256_GCM,data:M2IVuKnA0GQPav2qpDgthMvXxEE=,iv:zJxDYHsxhwRN8wltKFOCmB6u2JVKgfhsGHVw7PbaylQ=,tag:QULEQ9GdubfG9ZFTbIHd3w==,type:str]
+GITHUB_WORK_TOKEN: ENC[AES256_GCM,data:yhniWg==,iv:D/KsLC3AmzVA1+6PWj6CPIvuJwhxJmJc+AqtZOAWnnE=,tag:3BIjtEULVKwJa2pFLIpeiw==,type:str]
+GITHUB_WORK_EMAIL: ENC[AES256_GCM,data:849xvcf3C0khmGeO8DUywlPxIetpROv9MYnzTOSrhOlmT0nwGN/oaazPJYXIfHZrAxw/wVn5yg==,iv:1Xl0CKNv4OyqEwulryyJ+45gc3BP6jdF4OFwBTZJ/FY=,tag:zRXcMOUyXN+Dzu1g7Hp3LA==,type:str]
+GITHUB_WORK_NAME: ENC[AES256_GCM,data:JxJeploWtB1qdb9eWQk6,iv:Jo+B4A4Ec6MRVzy65rCYcCb6ZrsWiqkv3mrVLPCMEjc=,tag:890+e6kPmgEJ2jGf5cbowg==,type:str]
 hello: ENC[AES256_GCM,data:TmauA9CT/PLAnfL4/nu32/0DpRtfVKz5aezsHAmNTamrIOoUROAOlYxPPUEBhQ==,iv:OYzGGGLE0f+NYfKVEjUQM3EcC/vhkqfyFRW+uGvwdfM=,tag:Y6azAWbokUJtXt0e8QRt+g==,type:str]
 example_key: ENC[AES256_GCM,data:UyNP8F9O40vv4AXnrg==,iv:vTuIWzlVywrcPZ3cV+e+UGD897lT8iqjKElOX09Tt6Y=,tag:LeyeCC06Mnvx3a8lI+ZeMA==,type:str]
 #ENC[AES256_GCM,data:ADlOk0p1R2I5J7zirD+vAA==,iv:lXIHfQedEyuWoaHnbn5k1p73FM18yvadDW8ul74JpKk=,tag:gSS4RymQZqUrjLJfvxOT+Q==,type:comment]
@@ -18,7 +32,7 @@ sops:
             cU9jbEZyODhOS09JRU5XR1JXcFg4MXcKPlbdpN/c7bgNL/x8o18vE35Q1N+kTWM3
             FjQSQvxjtjlNaaaxg3TwoMcribbBd7NvY1EO+T9NCqjJh2H/fWfGWw==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2026-03-22T20:24:35Z"
-    mac: ENC[AES256_GCM,data:welY6+9/sg2tgDtZbkIIbXsmpxdI+nt9sRXO08lWO3rsvVQMMh/WF5tT3lRF17/JXYUh8b7XdlXso3BLgZX6tiAJ9U7s8dqG1jMybX9vxkOTkzdN3ewYgSeqjuoO2fKoWHL1h6Cz6yCkzMbuWNLTRqbNJaytg8JLsmMXwIob21U=,iv:zycrBuY7wL+uIioqz8k4D7y8iq0uqIN03jznHpQg9EY=,tag:RZ8SK3qxIvSLGN+PbrwhPQ==,type:str]
+    lastmodified: "2026-03-22T22:10:04Z"
+    mac: ENC[AES256_GCM,data:qSXBqJHTCeu8cqanVJELXIt4H/4BgkpfYdOLLMbWuUaQV6t+LMQid5oM+l/LqNg+voHsdUgAPCs/8ecjMqPBWb1o4cM6uji4r3z1JsrCfwzfd/1YBZMB8C+LhM2zHfaKajQyQkUztahVzOTrXnq/Y8JqSk2CIILnKiCqEpUzcA8=,iv:V+GB8491YE4/XoxxUr5MG886aiKuQnT5HXG6BXvLQks=,tag:D8O933398p9oGzYV581BUg==,type:str]
     unencrypted_suffix: _unencrypted
     version: 3.12.2

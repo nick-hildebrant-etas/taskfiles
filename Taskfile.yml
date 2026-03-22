@@ -1,9 +1,6 @@
 version: "3"
 
-includes:
-  secrets:
-    taskfile: ./secrets.yml
-    optional: true
+dotenv: [".taskfiles/.env"]
 
 vars:
   repo: "https://github.com/nick-hildebrant-etas/taskfiles"
@@ -13,6 +10,14 @@ vars:
   hooks_src: "{{.taskfiles_dir}}/hooks"
   hooks_dst: "{{.taskfiles_dir}}/.git/hooks"
   env_file: "{{.taskfiles_dir}}/.env"
+
+includes:
+  secrets:
+    taskfile: "{{.HOME}}/.taskfiles/secrets.yml"
+    optional: true
+  repos:
+    taskfile: "{{.HOME}}/.taskfiles/repos.yml"
+    optional: true
 
 tasks:
   default:
@@ -34,7 +39,7 @@ tasks:
         fi
 
   link:
-    desc: Symlink dotfiles from {{.home_dir}} into {{.HOME}}, and link Taskfile.yml + secrets.yml
+    desc: Symlink dotfiles from {{.home_dir}} into {{.HOME}}, and link Taskfile.yml
     cmds:
       - |
         for f in "{{.home_dir}}"/* "{{.home_dir}}"/.*; do
@@ -45,8 +50,7 @@ tasks:
           echo "Linked $name"
         done
       - ln -sf "{{.taskfiles_dir}}/Taskfile.yml" "{{.HOME}}/Taskfile.yml"
-      - ln -sf "{{.taskfiles_dir}}/secrets.yml" "{{.HOME}}/secrets.yml"
-      - echo "Linked Taskfile.yml and secrets.yml"
+      - echo "Linked Taskfile.yml"
 
   install:
     desc: Full setup — brew, secrets, git-config, link, hooks
@@ -54,25 +58,14 @@ tasks:
       - task: brew
       - task: secrets:doctor
       - task: secrets:decrypt
-      - task: git-config
+      - task: repos:git-credentials
       - task: link
       - task: hooks
 
   git-config:
-    desc: Set global git user.name and user.email from {{.env_file}}
+    desc: Configure git identity per account (delegates to repos:git-credentials)
     cmds:
-      - |
-        . "{{.env_file}}"
-        if [ -z "$(git config --global user.email)" ]; then
-          git config --global user.email "$GIT_EMAIL"
-          echo "Set git user.email to $GIT_EMAIL"
-        fi
-      - |
-        . "{{.env_file}}"
-        if [ -z "$(git config --global user.name)" ]; then
-          git config --global user.name "$GIT_NAME"
-          echo "Set git user.name to $GIT_NAME"
-        fi
+      - task: repos:git-credentials
 
   brew:
     desc: Install Homebrew packages from {{.brewfile}}
