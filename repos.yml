@@ -21,8 +21,11 @@ vars:
 
   repos:
     - name: taskfiles
-      dir: ~/code/taskfiles
+      dir: ~/work/taskfiles
       url: https://github.com/nick-hildebrant-etas/taskfiles
+    - name: score-cache
+      dir: ~/work/score-cache
+      url: https://github.com/nick-hildebrant-etas/score-cache
     - name: score-baselibs
       dir: ~/work/score/baselibs
       url: https://github.com/eclipse-score/baselibs
