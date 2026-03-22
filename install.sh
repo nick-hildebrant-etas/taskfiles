@@ -18,7 +18,7 @@ if ! command -v task >/dev/null 2>&1; then
 fi
 
 echo "Fetching Taskfile from ${TASKFILE_URL}..."
-TMPFILE="$(mktemp /tmp/Taskfile.XXXXXX.yml)"
+TMPFILE="$(mktemp /tmp/Taskfile.XXXXXX)"
 curl -fsSL "${TASKFILE_URL}" -o "${TMPFILE}"
 
 echo "Running tasks..."
