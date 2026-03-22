@@ -19,6 +19,8 @@ vars:
       email: "{{.GITHUB_WORK_EMAIL}}"
       git_name: "{{.GITHUB_WORK_NAME}}"
 
+  ws_file: '{{.VSCODE_WORKSPACE_FILE | default (printf "%s/repos.code-workspace" .HOME)}}'
+
   repos:
     - name: taskfiles
       dir: ~/work/taskfiles
@@ -94,6 +96,32 @@ tasks:
           name: "{{.ITEM.name}}"
           dir: "{{.ITEM.dir}}"
           url: "{{.ITEM.url}}"
+
+  ws-generate:
+    desc: Generate VS Code workspace file at {{.ws_file}}
+    silent: true
+    sources:
+      - "{{.HOME}}/.taskfiles/repos.yml"
+    generates:
+      - '{{.ws_file | replace "~" .HOME}}'
+    cmds:
+      - |
+        file="{{.ws_file | replace "~" .HOME}}"
+        mkdir -p "$(dirname "$file")"
+        printf '{\n  "folders": [\n' > "$file"
+        first=1
+        {{range .repos}}
+        if [ "$first" = "1" ]; then first=0; else printf ',\n' >> "$file"; fi
+        printf '    {"path": "%s"}' "{{.dir | replace "~" $.HOME}}" >> "$file"
+        {{end}}
+        printf '\n  ],\n  "settings": {}\n}\n' >> "$file"
+        echo "Generated $file"
+
+  ws-open:
+    desc: Open VS Code workspace at {{.ws_file}} (regenerates if repos.yml changed)
+    deps: [ws-generate]
+    cmds:
+      - code "{{.ws_file | replace "~" .HOME}}"
 
   _git:
     internal: true

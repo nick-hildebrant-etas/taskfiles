@@ -39,6 +39,21 @@ The `install` task runs in this order — ordering is load-bearing:
 
 ---
 
+## Templating
+
+Go-task uses Go's `text/template` engine extended with [Sprig](https://masterminds.github.io/sprig/) — a library of ~100 utility functions. Use `{{.VAR}}` to reference task vars, and sprig functions via pipes:
+
+```yaml
+"{{.dir | replace "~" .HOME}}"
+"{{.VSCODE_WORKSPACE_FILE | default (printf "%s/file" .HOME)}}"
+```
+
+Inside `{{range}}` blocks, `.` is rebound to the current item — use `$.VAR` to access root-level vars (e.g. `$.HOME`).
+
+Go-task also supports `sources`/`generates` on tasks to track input/output checksums and skip re-execution when outputs are up to date.
+
+---
+
 ## File naming conventions
 
 All YAML files in this repo use the `.yml` extension, not `.yaml`. This includes `Taskfile.yml`, `secrets.yml`, `vault.yml`, etc. The sole exception is `.sops.yaml`, which keeps its `.yaml` extension because SOPS requires that exact filename for its config file discovery.
