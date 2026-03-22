@@ -32,10 +32,16 @@ The `install` task runs in this order — ordering is load-bearing:
 
 1. `brew` — installs packages from `Brewfile`, including `age` and `sops`
 2. `secrets:doctor` — checks all secrets prerequisites; prints actionable help and exits 1 if anything is wrong
-3. `secrets:decrypt` — decrypts `secrets.yaml` → `.env` (requires age key; sops was just installed)
+3. `secrets:decrypt` — decrypts `vault.yml` → `.env` (requires age key; sops was just installed)
 4. `git-config` — sources `.env` directly in shell and sets `user.email`/`user.name` if unset
 5. `link` — symlinks dotfiles and `~/Taskfile.yml`
 6. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
+
+---
+
+## File naming conventions
+
+All YAML files in this repo use the `.yml` extension, not `.yaml`. This includes `Taskfile.yml`, `secrets.yml`, `vault.yml`, etc. The sole exception is `.sops.yaml`, which keeps its `.yaml` extension because SOPS requires that exact filename for its config file discovery.
 
 ---
 
@@ -62,7 +68,7 @@ User-defined vars use `lower_snake_case`. Built-in go-task vars (`{{.HOME}}`, `{
 |---|---|
 | `age_key_file` | `~/.config/sops/age/keys.txt` |
 | `age_key_dir` | `~/.config/sops/age` |
-| `secrets_file` | `~/.taskfiles/secrets.yaml` |
+| `vault_file` | `~/.taskfiles/vault.yml` |
 | `sops_config` | `~/.taskfiles/.sops.yaml` |
 | `env_file` | `~/.taskfiles/.env` |
 
@@ -70,20 +76,20 @@ User-defined vars use `lower_snake_case`. Built-in go-task vars (`{{.HOME}}`, `{
 
 ## Secrets
 
-Secrets are stored encrypted in `secrets.yaml` using [SOPS](https://github.com/getsops/sops) + [age](https://age-encryption.org). The file is committed to the repo. The plaintext `.env` is gitignored and only exists locally after decryption.
+Secrets are stored encrypted in `vault.yml` using [SOPS](https://github.com/getsops/sops) + [age](https://age-encryption.org). The file is committed to the repo. The plaintext `.env` is gitignored and only exists locally after decryption.
 
 ### File inventory
 
 | path | committed | what it is |
 |---|---|---|
-| `secrets.yaml` | yes | SOPS-encrypted secrets |
+| `vault.yml` | yes | SOPS-encrypted secrets |
 | `.sops.yaml` | yes | SOPS config — contains only the age **public** key |
 | `.env` | no | Decrypted `KEY=value` pairs, written by `task secrets:decrypt` |
 | `~/.config/sops/age/keys.txt` | never | age private key — back this up to a password manager |
 
 ### Required secrets
 
-At minimum, `secrets.yaml` must contain:
+At minimum, `vault.yml` must contain:
 
 - `GIT_EMAIL` — used by `task git-config`
 - `GIT_NAME` — used by `task git-config`
@@ -94,18 +100,18 @@ At minimum, `secrets.yaml` must contain:
 task secrets:doctor
 ```
 
-Checks sequentially: `age` and `sops` installed, age private key present, `.sops.yaml` not a placeholder, `secrets.yaml` exists and is encrypted, `.env` decrypted with required vars. Each `[FAIL]` line shows the exact fix command. Also runs automatically as step 2 of `task install`.
+Checks sequentially: `age` and `sops` installed, age private key present, `.sops.yaml` not a placeholder, `vault.yml` exists and is encrypted, `.env` decrypted with required vars. Each `[FAIL]` line shows the exact fix command. Also runs automatically as step 2 of `task install`.
 
 ### Day-to-day secrets workflow
 
 | task | what it does |
 |---|---|
-| `task secrets:edit` | Opens `secrets.yaml` in `$EDITOR`; SOPS decrypts before and re-encrypts on save |
-| `task secrets:decrypt` | Decrypts `secrets.yaml` → `.env` using `sops decrypt --output-type dotenv` |
+| `task secrets:edit` | Opens `vault.yml` in `$EDITOR`; SOPS decrypts before and re-encrypts on save |
+| `task secrets:decrypt` | Decrypts `vault.yml` → `.env` using `sops decrypt --output-type dotenv` |
 | `task secrets:keygen` | Generates a new age key at `~/.config/sops/age/keys.txt`; prints the public key |
-| `task secrets:encrypt-env` | One-time migration: converts an existing `.env` into an encrypted `secrets.yaml` |
+| `task secrets:encrypt-env` | One-time migration: converts an existing `.env` into an encrypted `vault.yml` |
 
-Never edit `secrets.yaml` directly with a text editor.
+Never edit `vault.yml` directly with a text editor.
 
 To add a new secret: `task secrets:edit`, add the key, save, then `task secrets:decrypt` to refresh `.env`.
 
@@ -130,14 +136,14 @@ cd ~/.taskfiles && task install
 
 ### Generating a new key (no backup exists)
 
-Only do this if you have no backup. A new key cannot decrypt the existing `secrets.yaml` until it is re-encrypted.
+Only do this if you have no backup. A new key cannot decrypt the existing `vault.yml` until it is re-encrypted.
 
 ```sh
 cd ~/.taskfiles
 task secrets:keygen
 # 1. Add the printed public key to .sops.yaml
-# 2. On a machine with the OLD key: sops updatekeys secrets.yaml
-# 3. Commit .sops.yaml and the re-encrypted secrets.yaml
+# 2. On a machine with the OLD key: sops updatekeys vault.yml
+# 3. Commit .sops.yaml and the re-encrypted vault.yml
 task install
 ```
 
@@ -145,6 +151,6 @@ task install
 
 ## Pre-commit hook
 
-`hooks/pre-commit` blocks staging `secrets.yaml` if it lacks the `sops:` metadata marker that SOPS always writes into encrypted files. The hook source is version-controlled in `hooks/`; `task hooks` (called by `task install`) copies it into `.git/hooks/`.
+`hooks/pre-commit` blocks staging `vault.yml` if it lacks the `sops:` metadata marker that SOPS always writes into encrypted files. The hook source is version-controlled in `hooks/`; `task hooks` (called by `task install`) copies it into `.git/hooks/`.
 
-If the hook fires unexpectedly, `secrets.yaml` has lost its encryption — run `sops -e -i secrets.yaml` to re-encrypt before committing.
+If the hook fires unexpectedly, `vault.yml` has lost its encryption — run `sops -e -i vault.yml` to re-encrypt before committing.

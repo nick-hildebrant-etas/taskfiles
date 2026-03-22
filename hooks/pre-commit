@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
-# Abort commit if secrets.yaml is staged but not SOPS-encrypted
+# Abort commit if vault.yml is staged but not SOPS-encrypted
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-SECRETS="$REPO_ROOT/secrets.yaml"
+SECRETS="$REPO_ROOT/vault.yml"
 
-if git diff --cached --name-only | grep -q "^secrets\.yaml$"; then
+if git diff --cached --name-only | grep -q "^vault\.yml$"; then
   if ! grep -q "^sops:" "$SECRETS" 2>/dev/null; then
-    echo "ERROR: secrets.yaml is not SOPS-encrypted."
-    echo "Run: sops -e -i secrets.yaml"
+    echo "ERROR: vault.yml is not SOPS-encrypted."
+    echo "Run: sops -e -i vault.yml"
     exit 1
   fi
 fi

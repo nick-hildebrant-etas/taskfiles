@@ -28,7 +28,7 @@ Or generate a new one if you don't have a backup:
 ```sh
 task secrets:keygen
 # add the printed public key to .sops.yaml, commit, and re-encrypt
-# secrets.yaml on a machine that already has the old key
+# vault.yml on a machine that already has the old key
 ```
 
 **Step 3 — full install:**
@@ -45,7 +45,7 @@ task install
 | `task link` | symlink dotfiles into `$HOME` |
 | `task hooks` | install git hooks into `.git/hooks/` |
 | `task secrets:doctor` | check that all secrets prerequisites are met |
-| `task secrets:decrypt` | decrypt `secrets.yaml` into `.env` |
+| `task secrets:decrypt` | decrypt `vault.yml` into `.env` |
 | `task secrets:edit` | edit secrets in-place (encrypts on save) |
 | `task secrets:keygen` | generate a new age key |
 
@@ -53,7 +53,7 @@ task install
 
 | file | committed | why |
 |---|---|---|
-| `secrets.yaml` | yes | encrypted by SOPS |
+| `vault.yml` | yes | encrypted by SOPS |
 | `.sops.yaml` | yes | only contains public key |
 | `.env` | no | plaintext, gitignored |
 | `~/.config/sops/age/keys.txt` | never | your private key |

@@ -1,3 +1,3 @@
 creation_rules:
-  - path_regex: secrets\.yaml$
-    age: age1REPLACEME
+  - path_regex: vault\.yml$
+    age: age1pyd0vcx9zsvnk56x35u47pdtl7ku2ygnza2kt55dyzk7dvnq396sfjjaek
