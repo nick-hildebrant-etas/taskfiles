@@ -1,11 +1,17 @@
 version: "3"
 
+dotenv:
+  - .env
+
+includes:
+  secrets:
+    taskfile: ./secrets.yml
+    optional: true
+
 vars:
   REPO: "https://github.com/nick-hildebrant-etas/taskfiles"
   TASKFILES_DIR: "{{.HOME}}/.taskfiles"
   HOME_DIR: "{{.TASKFILES_DIR}}/home"
-  GIT_EMAIL: "you@example.com"
-  GIT_NAME: "Your Name"
 
 tasks:
   default:
@@ -27,7 +33,7 @@ tasks:
         fi
 
   link:
-    desc: Symlink files from {{.HOME_DIR}} into $HOME
+    desc: Symlink files from {{.HOME_DIR}} into $HOME, and ~/Taskfile.yml
     cmds:
       - |
         for f in "{{.HOME_DIR}}"/* "{{.HOME_DIR}}"/.*; do
@@ -37,26 +43,32 @@ tasks:
           ln -sf "$f" "{{.HOME}}/$name"
           echo "Linked $name"
         done
+      - ln -sf "{{.TASKFILES_DIR}}/Taskfile.yml" "{{.HOME}}/Taskfile.yml"
+      - echo "Linked Taskfile.yml"
 
   install:
-    desc: Full setup (git-config + brew + link)
+    desc: Full setup — brew, secrets, git-config, link, hooks
     cmds:
-      - task: git-config
       - task: brew
+      - task: secrets:decrypt
+      - task: git-config
       - task: link
+      - task: hooks
 
   git-config:
     desc: Set global git user.name and user.email if unset
     cmds:
       - |
+        . "{{.TASKFILES_DIR}}/.env"
         if [ -z "$(git config --global user.email)" ]; then
-          git config --global user.email "{{.GIT_EMAIL}}"
-          echo "Set git user.email to {{.GIT_EMAIL}}"
+          git config --global user.email "$GIT_EMAIL"
+          echo "Set git user.email to $GIT_EMAIL"
         fi
       - |
+        . "{{.TASKFILES_DIR}}/.env"
         if [ -z "$(git config --global user.name)" ]; then
-          git config --global user.name "{{.GIT_NAME}}"
-          echo "Set git user.name to {{.GIT_NAME}}"
+          git config --global user.name "$GIT_NAME"
+          echo "Set git user.name to $GIT_NAME"
         fi
 
   brew:
@@ -68,3 +80,12 @@ tasks:
       - brew bundle --file="{{.TASKFILES_DIR}}/Brewfile"
     sources:
       - "{{.TASKFILES_DIR}}/Brewfile"
+
+  hooks:
+    desc: Install git hooks from hooks/ into .git/hooks/
+    cmds:
+      - |
+        mkdir -p "{{.TASKFILES_DIR}}/.git/hooks"
+        cp "{{.TASKFILES_DIR}}/hooks/pre-commit" "{{.TASKFILES_DIR}}/.git/hooks/pre-commit"
+        chmod +x "{{.TASKFILES_DIR}}/.git/hooks/pre-commit"
+        echo "Installed pre-commit hook"

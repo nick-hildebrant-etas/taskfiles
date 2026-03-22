@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# Abort commit if secrets.yaml is staged but not SOPS-encrypted
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SECRETS="$REPO_ROOT/secrets.yaml"
+
+if git diff --cached --name-only | grep -q "^secrets\.yaml$"; then
+  if ! grep -q "^sops:" "$SECRETS" 2>/dev/null; then
+    echo "ERROR: secrets.yaml is not SOPS-encrypted."
+    echo "Run: sops -e -i secrets.yaml"
+    exit 1
+  fi
+fi
+
+exit 0

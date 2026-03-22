@@ -1,0 +1,2 @@
+brew "age"
+brew "sops"
