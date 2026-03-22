@@ -1,0 +1,55 @@
+version: "3"
+
+vars:
+  DOTFILES_DIR: "{{.HOME}}/.dotfiles"
+  REPO: "https://github.com/nick-hildebrant-etas/taskfiles"
+  GIT_EMAIL: "you@example.com"
+  GIT_NAME: "Your Name"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Run full setup
+    cmds:
+      - task: git-config
+      - task: brew
+      - task: link
+
+  git-config:
+    desc: Set global git user.name and user.email if unset
+    cmds:
+      - |
+        if [ -z "$(git config --global user.email)" ]; then
+          git config --global user.email "{{.GIT_EMAIL}}"
+          echo "Set git user.email to {{.GIT_EMAIL}}"
+        fi
+      - |
+        if [ -z "$(git config --global user.name)" ]; then
+          git config --global user.name "{{.GIT_NAME}}"
+          echo "Set git user.name to {{.GIT_NAME}}"
+        fi
+
+  brew:
+    desc: Install Homebrew packages
+    preconditions:
+      - sh: command -v brew
+        msg: "Homebrew not found — install from https://brew.sh"
+    cmds:
+      - brew bundle --file=Brewfile
+    sources:
+      - Brewfile
+
+  link:
+    desc: Symlink dotfiles into $HOME
+    cmds:
+      - |
+        for f in dotfiles/.*; do
+          name="$(basename "$f")"
+          [ "$name" = "." ] || [ "$name" = ".." ] && continue
+          ln -sf "$(pwd)/$f" "${HOME}/$name"
+          echo "Linked $name"
+        done
