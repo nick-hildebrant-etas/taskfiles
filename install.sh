@@ -19,6 +19,7 @@ fi
 
 echo "Fetching Taskfile from ${TASKFILE_URL}..."
 TMPFILE="$(mktemp /tmp/Taskfile.XXXXXX)"
+rm -f "${TMPFILE}"
 curl -fsSL "${TASKFILE_URL}" -o "${TMPFILE}"
 
 echo "Running tasks..."
