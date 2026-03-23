@@ -29,7 +29,7 @@ vars:
       dir: ~/work/score-cache
       url: https://github.com/nick-hildebrant-etas/score-cache
     - name: score-baselibs
-      dir: ~/work/score/baselibs
+      dir: ~/work/baselibs
       url: https://github.com/eclipse-score/baselibs
 
 tasks:
