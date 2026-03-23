@@ -23,7 +23,7 @@ vars:
 
   repos:
     - name: taskfiles
-      dir: ~/work/taskfiles
+      dir: ~/.taskfiles
       url: https://github.com/nick-hildebrant-etas/taskfiles
     - name: score-cache
       dir: ~/work/score-cache
@@ -34,24 +34,36 @@ vars:
 
 tasks:
   git-credentials:
-    desc: Write ~/.netrc, per-account gitconfigs, and gitconfig url/includeIf rewrites from vault secrets
+    desc: Write ~/.git-credentials and per-account gitconfigs from vault secrets
     silent: true
+    vars:
+      default_git_account: work
+    preconditions:
+      - sh: test -f "{{.taskfiles_dir}}/.env"
+        msg: ".env not found — run: task secrets:decrypt"
+      - sh: '[ -n "{{.GITHUB_PERSONAL_USER}}" ]'
+        msg: "GITHUB_PERSONAL_USER missing from vault — run: task secrets:edit"
+      - sh: '[ -n "{{.GITHUB_WORK_USER}}" ]'
+        msg: "GITHUB_WORK_USER missing from vault — run: task secrets:edit"
     cmds:
       - |
-        : > ~/.netrc
-        chmod 600 ~/.netrc
+        : > ~/.git-credentials
+        chmod 600 ~/.git-credentials
         {{range .accounts}}
-        printf "machine %s\n  login %s\n  password %s\n\n" "{{.host_alias}}" "{{.user}}" "{{.token}}" >> ~/.netrc
-
-        git config --global "url.https://{{.host_alias}}/.insteadOf" "{{.url_prefix}}"
-
-        cfg=~/.gitconfig-{{.name}}
-        printf "[user]\n\temail = %s\n\tname = %s\n" "{{.email}}" "{{.git_name}}" > "$cfg"
-
+        printf '%s\n' '{{.url_prefix | replace "https://" (printf "https://%s:%s@" .user .token)}}' >> ~/.git-credentials
+        cfg="$HOME/.gitconfig-{{.name}}"
+        printf '[user]\n\temail = %s\n\tname = %s\n' '{{.email}}' '{{.git_name}}' > "$cfg"
         git config --global "includeIf.gitdir:{{.dir_prefix | replace "~" $.HOME}}.path" "$cfg"
-
         echo "configured: {{.name}} ({{.dir_prefix}})"
         {{end}}
+      - git config --global credential.helper store
+      - git config --global credential.useHttpPath true
+      - |
+        {{range .accounts}}{{if eq .name $.default_git_account}}
+        git config --global user.email '{{.email}}'
+        git config --global user.name '{{.git_name}}'
+        echo "global identity: {{.git_name}} <{{.email}}>"
+        {{end}}{{end}}
 
   pull:
     desc: Pull latest on all repos (parallel)
@@ -121,7 +133,13 @@ tasks:
     desc: Open VS Code workspace at {{.ws_file}} (regenerates if repos.yml changed)
     deps: [ws-generate]
     cmds:
-      - code "{{.ws_file | replace "~" .HOME}}"
+      - |
+        ws="{{.ws_file | replace "~" .HOME}}"
+        if code "$ws" 2>/dev/null; then
+          exit 0
+        fi
+        echo "hint: 'code' IPC unavailable (stale socket?). Open a new VS Code terminal and retry, or open manually:"
+        echo "  $ws"
 
   _git:
     internal: true

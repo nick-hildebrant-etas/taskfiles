@@ -9,7 +9,7 @@ GITHUB_WORK_DIR_PREFIX: ENC[AES256_GCM,data:pmxtUDIccA==,iv:hgcXJ/6dg45RuYD8n7w2
 GITHUB_WORK_HOST_ALIAS: ENC[AES256_GCM,data:kUuLbWUcXY9jVEOfb0lf,iv:DU+DB5alKif30XNSImSpQPdzj8I7lUSWM7uv87DPQzY=,tag:lEzqDSR8+IUuJL/T+i56aA==,type:str]
 GITHUB_WORK_URL_PREFIX: ENC[AES256_GCM,data:5AwGQZh+ArSkNr8bvoRxfoRWzBqJf11NNeVOgnu9Lu6PvsVhJ5QJEw==,iv:5VLZmmzeK3pGe47vcRGaixC0NWVuM0PmH6ySPuDWNBQ=,tag:faml6DA/01tCcoQZDRfWzQ==,type:str]
 GITHUB_WORK_USER: ENC[AES256_GCM,data:M2IVuKnA0GQPav2qpDgthMvXxEE=,iv:zJxDYHsxhwRN8wltKFOCmB6u2JVKgfhsGHVw7PbaylQ=,tag:QULEQ9GdubfG9ZFTbIHd3w==,type:str]
-GITHUB_WORK_TOKEN: ENC[AES256_GCM,data:yhniWg==,iv:D/KsLC3AmzVA1+6PWj6CPIvuJwhxJmJc+AqtZOAWnnE=,tag:3BIjtEULVKwJa2pFLIpeiw==,type:str]
+GITHUB_WORK_TOKEN: ENC[AES256_GCM,data:TwpvlhmnLm9fiQW1SPSZwzxHF2Q7f7Eb9PU2Oc+WAKL7GPPOwgosAw==,iv:T0NKlOnCY6wDbv/r32KC9fWhLB01HPRSX+m5ePUjgmw=,tag:X1n+7ghHB/GydEvptjZ6rg==,type:str]
 GITHUB_WORK_EMAIL: ENC[AES256_GCM,data:849xvcf3C0khmGeO8DUywlPxIetpROv9MYnzTOSrhOlmT0nwGN/oaazPJYXIfHZrAxw/wVn5yg==,iv:1Xl0CKNv4OyqEwulryyJ+45gc3BP6jdF4OFwBTZJ/FY=,tag:zRXcMOUyXN+Dzu1g7Hp3LA==,type:str]
 GITHUB_WORK_NAME: ENC[AES256_GCM,data:JxJeploWtB1qdb9eWQk6,iv:Jo+B4A4Ec6MRVzy65rCYcCb6ZrsWiqkv3mrVLPCMEjc=,tag:890+e6kPmgEJ2jGf5cbowg==,type:str]
 hello: ENC[AES256_GCM,data:TmauA9CT/PLAnfL4/nu32/0DpRtfVKz5aezsHAmNTamrIOoUROAOlYxPPUEBhQ==,iv:OYzGGGLE0f+NYfKVEjUQM3EcC/vhkqfyFRW+uGvwdfM=,tag:Y6azAWbokUJtXt0e8QRt+g==,type:str]
@@ -32,7 +32,7 @@ sops:
             cU9jbEZyODhOS09JRU5XR1JXcFg4MXcKPlbdpN/c7bgNL/x8o18vE35Q1N+kTWM3
             FjQSQvxjtjlNaaaxg3TwoMcribbBd7NvY1EO+T9NCqjJh2H/fWfGWw==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2026-03-22T22:10:04Z"
-    mac: ENC[AES256_GCM,data:qSXBqJHTCeu8cqanVJELXIt4H/4BgkpfYdOLLMbWuUaQV6t+LMQid5oM+l/LqNg+voHsdUgAPCs/8ecjMqPBWb1o4cM6uji4r3z1JsrCfwzfd/1YBZMB8C+LhM2zHfaKajQyQkUztahVzOTrXnq/Y8JqSk2CIILnKiCqEpUzcA8=,iv:V+GB8491YE4/XoxxUr5MG886aiKuQnT5HXG6BXvLQks=,tag:D8O933398p9oGzYV581BUg==,type:str]
+    lastmodified: "2026-03-22T23:58:25Z"
+    mac: ENC[AES256_GCM,data:wSApo0RYiVYWv5FqWYBMN7VLmHc+ROuUDYlPoq7oUr8avR9vKpCtlmk3O2Ja+0UG7TXltcq5hpL1Y6GURuM3QcZJ8mvCRK75S6SVz4DXid1VKz6Re4G6HO4RUaZQIt4qxdEGI7iGm2k0HLEpHZ0lQTbiJos/M8mWz4e83N3LgwM=,iv:SEh1LLskvlDq8DKy+fvSVn0JmyjtXVm2V0nYUN5lNxU=,tag:gcX93pY/pB03nDgPCPKXWg==,type:str]
     unencrypted_suffix: _unencrypted
     version: 3.12.2
