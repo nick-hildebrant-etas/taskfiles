@@ -9,6 +9,7 @@ tasks:
 
   bash:
     desc: Add task bash completion eval to ~/.bashrc
+    silent: true
     vars:
       bashrc: "{{.HOME}}/.bashrc"
     preconditions:
@@ -27,6 +28,7 @@ tasks:
 
   zsh:
     desc: Add task zsh completion eval to ~/.zshrc
+    silent: true
     vars:
       zshrc: "{{.HOME}}/.zshrc"
     preconditions:

@@ -1,15 +1,6 @@
 version: "3"
 
-dotenv: [".taskfiles/.env"]
-
-vars:
-  repo: "https://github.com/nick-hildebrant-etas/taskfiles"
-  taskfiles_dir: "{{.HOME}}/.taskfiles"
-  home_dir: "{{.taskfiles_dir}}/home"
-  brewfile: "{{.taskfiles_dir}}/Brewfile"
-  hooks_src: "{{.taskfiles_dir}}/hooks"
-  hooks_dst: "{{.taskfiles_dir}}/.git/hooks"
-  env_file: "{{.taskfiles_dir}}/.env"
+dotenv: ["{{.HOME}}/.taskfiles/.env"]
 
 includes:
   secrets:
@@ -17,6 +8,9 @@ includes:
     optional: true
   repos:
     taskfile: "{{.HOME}}/.taskfiles/repos.yml"
+    optional: true
+  completions:
+    taskfile: "{{.HOME}}/.taskfiles/completions.yml"
     optional: true
 
 tasks:
@@ -27,19 +21,25 @@ tasks:
       - task: link
 
   checkout:
-    desc: Clone or update repo at {{.taskfiles_dir}}
+    desc: Clone or update the taskfiles repo
+    vars:
+      repo: '{{.repo | default "https://github.com/nick-hildebrant-etas/taskfiles"}}'
+      dest: '{{.dest | default (printf "%s/.taskfiles" .HOME)}}'
     cmds:
       - |
-        if [ -d "{{.taskfiles_dir}}/.git" ]; then
-          echo "Updating {{.taskfiles_dir}}..."
-          git -C "{{.taskfiles_dir}}" pull
+        if [ -d "{{.dest}}/.git" ]; then
+          echo "Updating {{.dest}}..."
+          git -C "{{.dest}}" pull
         else
-          echo "Cloning {{.repo}} to {{.taskfiles_dir}}..."
-          git clone "{{.repo}}" "{{.taskfiles_dir}}"
+          echo "Cloning {{.repo}} to {{.dest}}..."
+          git clone "{{.repo}}" "{{.dest}}"
         fi
 
   link:
-    desc: Symlink dotfiles from {{.home_dir}} into {{.HOME}}, and link Taskfile.yml
+    desc: Symlink dotfiles into $HOME and link Taskfile.yml
+    silent: true
+    vars:
+      home_dir: '{{.home_dir | default (printf "%s/.taskfiles/home" .HOME)}}'
     cmds:
       - |
         for f in "{{.home_dir}}"/* "{{.home_dir}}"/.*; do
@@ -49,7 +49,7 @@ tasks:
           ln -sf "$f" "{{.HOME}}/$name"
           echo "Linked $name"
         done
-      - ln -sf "{{.taskfiles_dir}}/Taskfile.yml" "{{.HOME}}/Taskfile.yml"
+      - ln -sf "{{.HOME}}/.taskfiles/Taskfile.yml" "{{.HOME}}/Taskfile.yml"
       - echo "Linked Taskfile.yml"
 
   install:
@@ -59,6 +59,7 @@ tasks:
       - task: secrets:doctor
       - task: secrets:decrypt
       - task: repos:git-credentials
+      - task: repos:doctor
       - task: link
       - task: hooks
 
@@ -68,7 +69,9 @@ tasks:
       - task: repos:git-credentials
 
   brew:
-    desc: Install Homebrew packages from {{.brewfile}}
+    desc: Install Homebrew packages
+    vars:
+      brewfile: '{{.brewfile | default (printf "%s/.taskfiles/Brewfile" .HOME)}}'
     preconditions:
       - sh: command -v brew
         msg: "Homebrew not found — install from https://brew.sh"
@@ -88,61 +91,14 @@ tasks:
     dir: "{{.st_pwd}}"
 
   hooks:
-    desc: Copy hooks from {{.hooks_src}} into {{.hooks_dst}}
+    desc: Copy git hooks into .git/hooks
+    silent: true
+    vars:
+      hooks_src: '{{.hooks_src | default (printf "%s/.taskfiles/hooks" .HOME)}}'
+      hooks_dst: '{{.hooks_dst | default (printf "%s/.taskfiles/.git/hooks" .HOME)}}'
     cmds:
       - mkdir -p "{{.hooks_dst}}"
       - cp "{{.hooks_src}}/pre-commit" "{{.hooks_dst}}/pre-commit"
       - chmod +x "{{.hooks_dst}}/pre-commit"
       - echo "Installed pre-commit hook"
 
-  completions:
-    desc: Add eval-based completions for bash and zsh to shell rc files
-    cmds:
-      - task: completions:bash
-      - task: completions:zsh
-
-  completions:bash:
-    desc: Add task bash completion eval to ~/.bashrc
-    vars:
-      bashrc: "{{.HOME}}/.bashrc"
-      eval_line: 'eval "$(task --completion bash)"'
-    preconditions:
-      - sh: command -v task
-        msg: "task not found — run: task brew"
-    cmds:
-      - |
-        if ! grep -qF 'task --completion bash' "{{.bashrc}}" 2>/dev/null; then
-          echo '' >> "{{.bashrc}}"
-          echo '# task completions (added by task completions:bash)' >> "{{.bashrc}}"
-          echo '{{.eval_line}}' >> "{{.bashrc}}"
-          echo "Added bash completion eval to {{.bashrc}}"
-        else
-          echo "bash completion already present in {{.bashrc}}, skipping"
-        fi
-
-  completions:zsh:
-    desc: Add task zsh completion eval to ~/.zshrc
-    vars:
-      zshrc: "{{.HOME}}/.zshrc"
-    preconditions:
-      - sh: command -v task
-        msg: "task not found — run: task brew"
-    cmds:
-      - |
-        if ! grep -qF 'compinit' "{{.zshrc}}" 2>/dev/null; then
-          echo '' >> "{{.zshrc}}"
-          echo '# zsh completion system' >> "{{.zshrc}}"
-          echo 'autoload -Uz compinit && compinit' >> "{{.zshrc}}"
-          echo "Added compinit to {{.zshrc}}"
-        else
-          echo "compinit already present in {{.zshrc}}, skipping"
-        fi
-      - |
-        if ! grep -qF 'task --completion zsh' "{{.zshrc}}" 2>/dev/null; then
-          echo '' >> "{{.zshrc}}"
-          echo '# task completions (added by task completions:zsh)' >> "{{.zshrc}}"
-          echo 'eval "$(task --completion zsh)"' >> "{{.zshrc}}"
-          echo "Added zsh completion eval to {{.zshrc}}"
-        else
-          echo "zsh completion already present in {{.zshrc}}, skipping"
-        fi

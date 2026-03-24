@@ -52,6 +52,20 @@ Inside `{{range}}` blocks, `.` is rebound to the current item — use `$.VAR` to
 
 Go-task also supports `sources`/`generates` on tasks to track input/output checksums and skip re-execution when outputs are up to date.
 
+**Never use shell `eval` to work around templating.** Use go templates directly — `{{.user}}`, `{{.token}}`, `{{range .accounts}}`, etc. `eval` causes `Nil` execution errors when any template var is nil, is hard to debug, and is always the wrong approach here.
+
+**Task-local vars pattern:** All path and config vars are defined inside each task with `| default` fallbacks, not in a global `vars:` block. This makes tasks self-contained and overridable at call time:
+
+```yaml
+  some-task:
+    vars:
+      foo: '{{.foo | default (printf "%s/.taskfiles/something" .HOME)}}'
+    cmds:
+      - do-thing "{{.foo}}"
+```
+
+Use `task: dep-name` with explicit `vars:` when passing vars to `deps` so the dep receives the resolved value, not a template string.
+
 ---
 
 ## File naming conventions
@@ -62,30 +76,25 @@ All YAML files in this repo use the `.yml` extension, not `.yaml`. This includes
 
 ## Variables
 
-All paths are defined as vars — no bare strings in task `cmds`. `secrets.yml` inherits `TASKFILES_DIR` from the parent via go-task's variable scoping.
+All paths are defined as vars — no bare strings in task `cmds`. Each taskfile defines its vars task-locally with `| default` fallbacks (see task-local vars pattern above). Included taskfiles use `{{.HOME}}/.taskfiles` directly rather than depending on a var from the parent.
 
 User-defined vars use `lower_snake_case`. Built-in go-task vars (`{{.HOME}}`, `{{.USER}}`, etc.) remain uppercase as provided by go-task.
 
-**`Taskfile.yml` globals:**
+**Common task-local vars (defined per-task with `| default`):**
 
-| var | value |
+| var | default value |
 |---|---|
-| `taskfiles_dir` | `~/.taskfiles` |
 | `home_dir` | `~/.taskfiles/home` |
 | `brewfile` | `~/.taskfiles/Brewfile` |
 | `hooks_src` | `~/.taskfiles/hooks` |
 | `hooks_dst` | `~/.taskfiles/.git/hooks` |
 | `env_file` | `~/.taskfiles/.env` |
-
-**`secrets.yml` vars:**
-
-| var | value |
-|---|---|
 | `age_key_file` | `~/.config/sops/age/keys.txt` |
 | `age_key_dir` | `~/.config/sops/age` |
 | `vault_file` | `~/.taskfiles/vault.yml` |
 | `sops_config` | `~/.taskfiles/.sops.yaml` |
-| `env_file` | `~/.taskfiles/.env` |
+
+**Exception:** `accounts:` and `repos:` in `repos.yml` stay at file level — they are data structures, not path config.
 
 ---
 
@@ -138,9 +147,9 @@ To add a new secret: `task secrets:edit`, add the key, save, then `task secrets:
 
 ### Using vault secrets as go-task template vars
 
-The root `Taskfile.yml` includes `dotenv: [".taskfiles/.env"]`. Once `secrets:decrypt` has been run, all keys from `.env` are available as `{{.VAR_NAME}}` template vars in any task — including those in included taskfiles like `repos.yml`. This is how account config values (`dir_prefix`, `host_alias`, `url_prefix`) are kept out of `repos.yml` and stored encrypted in vault instead.
+The root `Taskfile.yml` includes `dotenv: ["$HOME/.taskfiles/.env"]`. Once `secrets:decrypt` has been run, all keys from `.env` are available as `{{.VAR_NAME}}` template vars in any task — including those in included taskfiles like `repos.yml`. This is how account config values (`dir_prefix`, `host_alias`, `url_prefix`) are kept out of `repos.yml` and stored encrypted in vault instead.
 
-**Path note:** The path `.taskfiles/.env` is relative to `~/` (where `~/Taskfile.yml` symlink lives). Running `task` directly from `~/.taskfiles/` will not load dotenv, but `task -g` from anywhere and `task` from `~/` both work correctly.
+**Path note:** The dotenv path uses `{{.HOME}}/.taskfiles/.env` (go template syntax). Do NOT use `$HOME` here — go-task does NOT expand shell env vars in `dotenv:` paths, only `{{.HOME}}` works. A wrong path silently fails to load and all dotenv vars appear empty.
 
 ### go-task dotenv limitation
 

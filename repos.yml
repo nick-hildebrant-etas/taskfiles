@@ -38,12 +38,13 @@ tasks:
     silent: true
     vars:
       default_git_account: work
+      env_file: '{{.env_file | default (printf "%s/.taskfiles/.env" .HOME)}}'
     preconditions:
-      - sh: test -f "{{.taskfiles_dir}}/.env"
+      - sh: test -f "{{.env_file}}"
         msg: ".env not found — run: task secrets:decrypt"
-      - sh: '[ -n "{{.GITHUB_PERSONAL_USER}}" ]'
+      - sh: '. "{{.env_file}}" && [ -n "$GITHUB_PERSONAL_USER" ]'
         msg: "GITHUB_PERSONAL_USER missing from vault — run: task secrets:edit"
-      - sh: '[ -n "{{.GITHUB_WORK_USER}}" ]'
+      - sh: '. "{{.env_file}}" && [ -n "$GITHUB_WORK_USER" ]'
         msg: "GITHUB_WORK_USER missing from vault — run: task secrets:edit"
     cmds:
       - |
@@ -64,6 +65,74 @@ tasks:
         git config --global user.name '{{.git_name}}'
         echo "global identity: {{.git_name}} <{{.email}}>"
         {{end}}{{end}}
+
+  doctor:
+    desc: Check git credentials and per-account config are correctly set up
+    silent: true
+    vars:
+      env_file: '{{.env_file | default (printf "%s/.taskfiles/.env" .HOME)}}'
+    cmds:
+      - |
+        FAILED=0
+        pass() { printf "  [OK]   %s\n" "$1"; }
+        fail() { printf "  [FAIL] %s\n" "$1"; printf "         Fix: %s\n" "$2"; FAILED=1; }
+
+        printf "\nRepos doctor\n"
+        printf "------------\n"
+
+        if [ -f "{{.env_file}}" ]; then
+          pass ".env found at {{.env_file}}"
+        else
+          fail ".env not found at {{.env_file}}" "task secrets:decrypt"
+        fi
+
+        if [ -f "$HOME/.git-credentials" ] && [ -s "$HOME/.git-credentials" ]; then
+          pass "~/.git-credentials exists and is non-empty"
+        else
+          fail "~/.git-credentials is missing or empty" "task repos:git-credentials"
+        fi
+
+        {{range .accounts}}
+        printf "\n  Account: {{.name}}\n"
+
+        if [ -n '{{.user}}' ]; then
+          pass "user: {{.user}}"
+        else
+          fail "user is empty (GITHUB_{{.name | upper}}_USER not in dotenv)" "task secrets:edit"
+        fi
+
+        if [ -n '{{.email}}' ]; then
+          pass "email: {{.email}}"
+        else
+          fail "email is empty (GITHUB_{{.name | upper}}_EMAIL not in dotenv)" "task secrets:edit"
+        fi
+
+        if [ -n '{{.token}}' ]; then
+          pass "token: set"
+        else
+          fail "token is empty (GITHUB_{{.name | upper}}_TOKEN not in dotenv)" "task secrets:edit"
+        fi
+
+        cfg="$HOME/.gitconfig-{{.name}}"
+        if [ -f "$cfg" ]; then
+          _email=$(git config --file "$cfg" user.email 2>/dev/null)
+          _uname=$(git config --file "$cfg" user.name 2>/dev/null)
+          if [ -n "$_email" ] && [ -n "$_uname" ]; then
+            pass "~/.gitconfig-{{.name}}: $_uname <$_email>"
+          else
+            fail "~/.gitconfig-{{.name}} has empty values" "task repos:git-credentials"
+          fi
+        else
+          fail "~/.gitconfig-{{.name}} not found" "task repos:git-credentials"
+        fi
+        {{end}}
+
+        printf "\n"
+        if [ "$FAILED" -eq 1 ]; then
+          printf "Fix the issues above, then re-run: task repos:doctor\n\n"
+          exit 1
+        fi
+        printf "All checks passed.\n\n"
 
   pull:
     desc: Pull latest on all repos (parallel)
