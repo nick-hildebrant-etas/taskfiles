@@ -94,3 +94,55 @@ tasks:
       - cp "{{.hooks_src}}/pre-commit" "{{.hooks_dst}}/pre-commit"
       - chmod +x "{{.hooks_dst}}/pre-commit"
       - echo "Installed pre-commit hook"
+
+  completions:
+    desc: Add eval-based completions for bash and zsh to shell rc files
+    cmds:
+      - task: completions:bash
+      - task: completions:zsh
+
+  completions:bash:
+    desc: Add task bash completion eval to ~/.bashrc
+    vars:
+      bashrc: "{{.HOME}}/.bashrc"
+      eval_line: 'eval "$(task --completion bash)"'
+    preconditions:
+      - sh: command -v task
+        msg: "task not found — run: task brew"
+    cmds:
+      - |
+        if ! grep -qF 'task --completion bash' "{{.bashrc}}" 2>/dev/null; then
+          echo '' >> "{{.bashrc}}"
+          echo '# task completions (added by task completions:bash)' >> "{{.bashrc}}"
+          echo '{{.eval_line}}' >> "{{.bashrc}}"
+          echo "Added bash completion eval to {{.bashrc}}"
+        else
+          echo "bash completion already present in {{.bashrc}}, skipping"
+        fi
+
+  completions:zsh:
+    desc: Add task zsh completion eval to ~/.zshrc
+    vars:
+      zshrc: "{{.HOME}}/.zshrc"
+    preconditions:
+      - sh: command -v task
+        msg: "task not found — run: task brew"
+    cmds:
+      - |
+        if ! grep -qF 'compinit' "{{.zshrc}}" 2>/dev/null; then
+          echo '' >> "{{.zshrc}}"
+          echo '# zsh completion system' >> "{{.zshrc}}"
+          echo 'autoload -Uz compinit && compinit' >> "{{.zshrc}}"
+          echo "Added compinit to {{.zshrc}}"
+        else
+          echo "compinit already present in {{.zshrc}}, skipping"
+        fi
+      - |
+        if ! grep -qF 'task --completion zsh' "{{.zshrc}}" 2>/dev/null; then
+          echo '' >> "{{.zshrc}}"
+          echo '# task completions (added by task completions:zsh)' >> "{{.zshrc}}"
+          echo 'eval "$(task --completion zsh)"' >> "{{.zshrc}}"
+          echo "Added zsh completion eval to {{.zshrc}}"
+        else
+          echo "zsh completion already present in {{.zshrc}}, skipping"
+        fi
