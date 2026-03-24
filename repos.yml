@@ -31,6 +31,9 @@ vars:
     - name: score-baselibs
       dir: ~/work/baselibs
       url: https://github.com/eclipse-score/baselibs
+    - name: ebcl-template
+      dir: ~/work/ebcl_template
+      url: https://github.com/Elektrobit/ebcl_template.git
 
 tasks:
   git-credentials:
