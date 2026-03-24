@@ -36,18 +36,42 @@ task secrets:keygen
 task install
 ```
 
+`task install` runs in this order: `brew` → `secrets:doctor` → `secrets:decrypt` → `repos:git-credentials` → `repos:doctor` → `link` → `hooks`
+
 ## tasks
+
+### core
 
 | task | description |
 |---|---|
-| `task install` | full setup (brew + secrets + git-config + link + hooks) |
-| `task brew` | install Homebrew packages |
-| `task link` | symlink dotfiles into `$HOME` |
-| `task hooks` | install git hooks into `.git/hooks/` |
-| `task secrets:doctor` | check that all secrets prerequisites are met |
-| `task secrets:decrypt` | decrypt `vault.yml` into `.env` |
-| `task secrets:edit` | edit secrets in-place (encrypts on save) |
+| `task install` | full setup — brew, secrets, git-config, link, hooks |
+| `task brew` | install Homebrew packages from `Brewfile` |
+| `task link` | symlink dotfiles into `$HOME` and link `~/Taskfile.yml` |
+| `task hooks` | copy git hooks into `.git/hooks/` |
+| `task checkout` | clone or pull the taskfiles repo |
+
+### secrets
+
+| task | description |
+|---|---|
+| `task secrets:doctor` | check all secrets prerequisites |
+| `task secrets:decrypt` | decrypt `vault.yml` → `.env` |
+| `task secrets:edit` | edit secrets in-place (SOPS encrypts on save) |
 | `task secrets:keygen` | generate a new age key |
+| `task secrets:encrypt-env` | one-time: convert an existing `.env` into `vault.yml` |
+
+### repos
+
+| task | description |
+|---|---|
+| `task repos:git-credentials` | write `~/.git-credentials` and per-account gitconfigs from vault |
+| `task repos:doctor` | check git credentials and per-account config |
+| `task repos:clone` | clone any repos not yet present (parallel) |
+| `task repos:pull` | pull latest on all repos (parallel) |
+| `task repos:fetch` | fetch all repos (parallel) |
+| `task repos:status` | show git status for all repos (parallel) |
+| `task repos:ws-generate` | generate VS Code workspace file |
+| `task repos:ws-open` | open VS Code workspace (regenerates if `repos.yml` changed) |
 
 ## secrets model
 
@@ -57,9 +81,3 @@ task install
 | `.sops.yaml` | yes | only contains public key |
 | `.env` | no | plaintext, gitignored |
 | `~/.config/sops/age/keys.txt` | never | your private key |
-
-## run directly
-
-```sh
-task --taskfile <(curl -fsSL https://raw.githubusercontent.com/nick-hildebrant-etas/taskfiles/main/Taskfile.yml)
-```
