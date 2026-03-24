@@ -12,6 +12,9 @@ includes:
   completions:
     taskfile: "{{.HOME}}/.taskfiles/completions.yml"
     optional: true
+  ebcl:
+    taskfile: "{{.HOME}}/.taskfiles/ebcl.yml"
+    optional: true
 
 tasks:
   default:

@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+includes:
+  boot-generator:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/BootGenerator.yml"
+    optional: true
+  efi:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/Efi.yml"
+    optional: true
+  embdgen:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/Embdgen.yml"
+    optional: true
+  generic:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/Generic.yml"
+    optional: true
+  initrd-generator:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/InitrdGenerator.yml"
+    optional: true
+  kernel:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/Kernel.yml"
+    optional: true
+  qemu-image:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/QEMU_image.yml"
+    optional: true
+  qemu:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/QEMU.yml"
+    optional: true
+  rdb2-image:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/RDB2_image.yml"
+    optional: true
+  root-generator:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/RootGenerator.yml"
+    optional: true
+  rpi-image:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/RPi_image.yml"
+    optional: true
+  sysroot:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/Sysroot.yml"
+    optional: true
+  test-extensions:
+    taskfile: "{{.HOME}}/work/ebcl_template/images/tasks/TestExtensions.yml"
+    optional: true
+
+tasks: {}
