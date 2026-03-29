@@ -1,0 +1,52 @@
+# vault.sops.yaml.example
+#
+# Copy this to vault.sops.yaml, fill in your values, then encrypt:
+#   cp vault.sops.yaml.example vault.sops.yaml
+#   task secrets:edit   # opens in $EDITOR; SOPS encrypts on save
+#
+# SOPS encrypts all leaf string values. The structure (keys, list shape)
+# remains visible in the committed encrypted file — only values become ciphertext.
+#
+# Fields used by tasks:
+#   name       — identity slug; used in gitconfig filenames and credential prefixes
+#   user       — GitHub username
+#   token      — GitHub personal access token (ghp_...)
+#   email      — git commit email for this identity
+#   git_name   — git display name (appears in commits)
+#   dir        — local root directory for this identity's repos (~ is expanded)
+#   repos      — list of repo clone URLs belonging to this identity
+
+identities:
+  - name: personal
+    user: myusername
+    token: ghp_personal_token_here
+    email: me@example.com
+    git_name: My Name
+    dir: ~/personal
+    repos:
+      - https://github.com/myusername/dotfiles.git
+      - https://github.com/myusername/scripts.git
+
+  - name: work
+    user: work-username
+    token: ghp_work_token_here
+    email: me@company.com
+    git_name: My Name (Work)
+    dir: ~/work
+    repos:
+      - https://github.com/myorg/repo1.git
+      - https://github.com/myorg/repo2.git
+
+# Add as many identities as needed — no hardcoded names anywhere.
+# All tasks derive the identity list at runtime via yq.
+#
+# After editing, tasks read the vault directly:
+#   task repos:git-credentials   — write ~/.git-credentials + per-identity gitconfigs
+#   task repos:clone             — clone all repos listed above
+#   task secrets:envgen          — export a flat .env for tools that need KEY=VALUE
+#
+# The generated .env uses the naming convention:
+#   GITHUB_<NAME_UPPER>_USER=...
+#   GITHUB_<NAME_UPPER>_TOKEN=...
+#   GITHUB_<NAME_UPPER>_EMAIL=...
+#   etc.

@@ -1,7 +1,5 @@
 version: "3"
 
-dotenv: ["{{.HOME}}/.taskfiles/.env"]
-
 includes:
   secrets:
     taskfile: "{{.HOME}}/.taskfiles/secrets.yml"
@@ -26,7 +24,7 @@ tasks:
   checkout:
     desc: Clone or update the taskfiles repo
     vars:
-      repo: '{{.repo | default "https://github.com/nick-hildebrant-etas/taskfiles"}}'
+      repo: '{{.repo | default "https://github.com/eclipse-score/score-task-template"}}'
       dest: '{{.dest | default (printf "%s/.taskfiles" .HOME)}}'
     cmds:
       - |
@@ -60,7 +58,6 @@ tasks:
     cmds:
       - task: brew
       - task: secrets:doctor
-      - task: secrets:decrypt
       - task: repos:git-credentials
       - task: repos:doctor
       - task: link

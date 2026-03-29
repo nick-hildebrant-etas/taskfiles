@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -e
 
-REPO="nick-hildebrant-etas/taskfiles"
+REPO="eclipse-score/score-task-template"
 BRANCH="main"
 TASKFILES_DIR="${HOME}/.taskfiles"
 RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
@@ -14,6 +14,21 @@ if ! command -v task >/dev/null 2>&1; then
     brew install go-task
   else
     sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "${HOME}/.local/bin"
+    export PATH="${HOME}/.local/bin:${PATH}"
+  fi
+fi
+
+# Install yq if not present
+if ! command -v yq >/dev/null 2>&1; then
+  echo "Installing yq..."
+  if command -v brew >/dev/null 2>&1; then
+    brew install yq
+  else
+    YQ_VERSION="v4.44.1"
+    YQ_BIN="${HOME}/.local/bin/yq"
+    mkdir -p "${HOME}/.local/bin"
+    curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_darwin_arm64" -o "${YQ_BIN}"
+    chmod +x "${YQ_BIN}"
     export PATH="${HOME}/.local/bin:${PATH}"
   fi
 fi

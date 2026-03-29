@@ -28,7 +28,7 @@ Or generate a new one if you don't have a backup:
 ```sh
 task secrets:keygen
 # add the printed public key to .sops.yaml, commit, and re-encrypt
-# vault.yml on a machine that already has the old key
+# vault.sops.yaml on a machine that already has the old key
 ```
 
 **Step 3 — full install:**
@@ -36,7 +36,7 @@ task secrets:keygen
 task install
 ```
 
-`task install` runs in this order: `brew` → `secrets:doctor` → `secrets:decrypt` → `repos:git-credentials` → `repos:doctor` → `link` → `hooks`
+`task install` runs in this order: `brew` → `secrets:doctor` → `repos:git-credentials` → `repos:doctor` → `link` → `hooks`
 
 ## tasks
 
@@ -55,10 +55,9 @@ task install
 | task | description |
 |---|---|
 | `task secrets:doctor` | check all secrets prerequisites |
-| `task secrets:decrypt` | decrypt `vault.yml` → `.env` |
-| `task secrets:edit` | edit secrets in-place (SOPS encrypts on save) |
+| `task secrets:edit` | edit `vault.sops.yaml` in-place (SOPS encrypts on save) |
+| `task secrets:envgen` | generate a flat `.env` from vault (for tools that need `KEY=VALUE`) |
 | `task secrets:keygen` | generate a new age key |
-| `task secrets:encrypt-env` | one-time: convert an existing `.env` into `vault.yml` |
 
 ### repos
 
@@ -75,9 +74,11 @@ task install
 
 ## secrets model
 
+Secrets live in `vault.sops.yaml` as structured YAML. Tasks decrypt on-demand with `sops -d` — there is no plaintext `.env` in the normal workflow. See `vault.sops.yaml.example` for the full schema.
+
 | file | committed | why |
 |---|---|---|
-| `vault.yml` | yes | encrypted by SOPS |
+| `vault.sops.yaml` | yes | encrypted by SOPS; structured `identities:` list |
 | `.sops.yaml` | yes | only contains public key |
-| `.env` | no | plaintext, gitignored |
+| `.env` | no | optional flat export from `task secrets:envgen`, gitignored |
 | `~/.config/sops/age/keys.txt` | never | your private key |

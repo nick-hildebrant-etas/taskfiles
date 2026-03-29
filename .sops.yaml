@@ -1,3 +1,12 @@
+# This file is intentionally committed to version control.
+# It contains only the AGE PUBLIC KEY — safe to share, cannot decrypt anything.
+# The private key lives at ~/.config/sops/age/keys.txt (never committed).
+#
+# SOPS uses this file to know which public key to encrypt vault.sops.yaml for.
+# Without it, every `sops -e` call would require manually specifying the key.
+#
+# To rotate keys: run `task secrets:keygen`, replace the age: value below,
+# then re-encrypt on a machine with the old private key: sops updatekeys vault.sops.yaml
 creation_rules:
-  - path_regex: vault\.yml$
+  - path_regex: vault\.sops\.yaml$
     age: age1pyd0vcx9zsvnk56x35u47pdtl7ku2ygnza2kt55dyzk7dvnq396sfjjaek

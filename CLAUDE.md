@@ -30,12 +30,11 @@ Because `install.sh` runs a temp copy of `Taskfile.yml`, included taskfiles won'
 
 The `install` task runs in this order — ordering is load-bearing:
 
-1. `brew` — installs packages from `Brewfile`, including `age` and `sops`
+1. `brew` — installs packages from `Brewfile`, including `age`, `sops`, and `yq`
 2. `secrets:doctor` — checks all secrets prerequisites; prints actionable help and exits 1 if anything is wrong
-3. `secrets:decrypt` — decrypts `vault.yml` → `.env` (requires age key; sops was just installed)
-4. `repos:git-credentials` — writes `~/.netrc`, per-account `~/.gitconfig-<name>` files, and `includeIf`/`url.insteadOf` gitconfig entries
-5. `link` — symlinks dotfiles and `~/Taskfile.yml`
-6. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
+3. `repos:git-credentials` — decrypts `vault.sops.yaml` and writes per-identity `~/.gitconfig-<name>` files and `includeIf` gitconfig entries
+4. `link` — symlinks dotfiles and `~/Taskfile.yml`
+5. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
 
 ---
 
@@ -70,7 +69,9 @@ Use `task: dep-name` with explicit `vars:` when passing vars to `deps` so the de
 
 ## File naming conventions
 
-All YAML files in this repo use the `.yml` extension, not `.yaml`. This includes `Taskfile.yml`, `secrets.yml`, `vault.yml`, etc. The sole exception is `.sops.yaml`, which keeps its `.yaml` extension because SOPS requires that exact filename for its config file discovery.
+All YAML files in this repo use the `.yml` extension, not `.yaml`. This includes `Taskfile.yml`, `secrets.yml`, etc. Two exceptions use `.yaml`:
+- `.sops.yaml` — SOPS requires that exact filename for config file discovery
+- `vault.sops.yaml` — SOPS-managed secret files use the `.sops.yaml` suffix so SOPS's `path_regex` rule matches them automatically
 
 ---
 
@@ -88,40 +89,63 @@ User-defined vars use `lower_snake_case`. Built-in go-task vars (`{{.HOME}}`, `{
 | `brewfile` | `~/.taskfiles/Brewfile` |
 | `hooks_src` | `~/.taskfiles/hooks` |
 | `hooks_dst` | `~/.taskfiles/.git/hooks` |
-| `env_file` | `~/.taskfiles/.env` |
+| `env_file` | `~/.taskfiles/.env` (only used by `secrets:envgen`) |
 | `age_key_file` | `~/.config/sops/age/keys.txt` |
 | `age_key_dir` | `~/.config/sops/age` |
-| `vault_file` | `~/.taskfiles/vault.yml` |
+| `vault_file` | `~/.taskfiles/vault.sops.yaml` |
 | `sops_config` | `~/.taskfiles/.sops.yaml` |
-
-**Exception:** `accounts:` and `repos:` in `repos.yml` stay at file level — they are data structures, not path config.
 
 ---
 
 ## Secrets
 
-Secrets are stored encrypted in `vault.yml` using [SOPS](https://github.com/getsops/sops) + [age](https://age-encryption.org). The file is committed to the repo. The plaintext `.env` is gitignored and only exists locally after decryption.
+Secrets are stored encrypted in `vault.sops.yaml` using [SOPS](https://github.com/getsops/sops) + [age](https://age-encryption.org). The file is committed to the repo. There is no plaintext `.env` in the normal workflow — tasks decrypt on-demand via `sops -d` and pipe directly to `yq`.
 
 ### File inventory
 
 | path | committed | what it is |
 |---|---|---|
-| `vault.yml` | yes | SOPS-encrypted secrets |
+| `vault.sops.yaml` | yes | SOPS-encrypted structured secrets |
 | `.sops.yaml` | yes | SOPS config — contains only the age **public** key |
-| `.env` | no | Decrypted `KEY=value` pairs, written by `task secrets:decrypt` |
+| `.env` | no | Optional flat export, written by `task secrets:envgen` |
 | `~/.config/sops/age/keys.txt` | never | age private key — back this up to a password manager |
 
-### Required secrets
+### Vault structure
 
-One set of keys per entry in the `accounts:` var in `repos.yml`:
+`vault.sops.yaml` holds a list of `identities`, each with git credentials and a list of repos. SOPS encrypts all leaf values; the structure (keys and list shape) stays visible in the encrypted file.
 
-- `GITHUB_<ACCOUNT>_USER` — GitHub username
-- `GITHUB_<ACCOUNT>_TOKEN` — GitHub personal access token (`ghp_...`)
-- `GITHUB_<ACCOUNT>_EMAIL` — git commit email for this identity
-- `GITHUB_<ACCOUNT>_NAME` — git display name for this identity
-- `GITHUB_<ACCOUNT>_DIR_PREFIX` — local root dir for this account's repos (e.g. `~/work/`)
-- `GITHUB_<ACCOUNT>_HOST_ALIAS` — virtual hostname for url rewriting (e.g. `work.github.com`)
-- `GITHUB_<ACCOUNT>_URL_PREFIX` — GitHub org URL prefix (e.g. `https://github.com/my-org/`)
+See `vault.sops.yaml.example` for a complete annotated example. The fields used by tasks are:
+
+| field | used by |
+|---|---|
+| `name` | `git-credentials` (gitconfig filename, includeIf key), `repos:list` |
+| `user` | `git-credentials` (credential store) |
+| `token` | `git-credentials` (credential store) |
+| `email` | `git-credentials` (per-identity gitconfig) |
+| `git_name` | `git-credentials` (per-identity gitconfig, global fallback) |
+| `dir` | `git-credentials` (includeIf path), `clone`/`pull`/`fetch`/`status` |
+| `repos[]` | `clone`, `pull`, `fetch`, `status`, `list`, `ws-generate` |
+
+### Reading vault data in tasks
+
+Tasks decrypt the vault once into a `sh:` dynamic var, then use go-task's `for` loop to iterate — no manual count/index arithmetic, no repeated `sops -d` calls:
+
+```yaml
+vars:
+  vault_file: '{{.vault_file | default (printf "%s/.taskfiles/vault.sops.yaml" .HOME)}}'
+  repo_lines:
+    sh: sops -d "{{.vault_file}}" | yq '.identities[] | (.dir + "\t" + .repos[])'
+cmds:
+  - for: {var: repo_lines, split: "\n"}
+    cmd: |
+      dir=$(echo "{{.ITEM}}" | cut -f1 | sed "s|~|$HOME|g")
+      url=$(echo "{{.ITEM}}" | cut -f2)
+      repo_name=$(basename "$url" .git)
+```
+
+The `sh:` var runs once at task start. The yq expression emits one tab-separated line per repo across all identities.
+
+For tasks that need all fields per identity (not per repo), use a similar pattern with a different yq expression — e.g. `'.identities[] | (.name + "\t" + .user + "\t" + .dir)'`.
 
 ### Diagnosing the setup
 
@@ -129,37 +153,30 @@ One set of keys per entry in the `accounts:` var in `repos.yml`:
 task secrets:doctor
 ```
 
-Checks sequentially: `age` and `sops` installed, age private key present, `.sops.yaml` not a placeholder, `vault.yml` exists and is encrypted, `.env` decrypted with required vars. Each `[FAIL]` line shows the exact fix command. Also runs automatically as step 2 of `task install`.
+Checks sequentially: `age`, `sops`, and `yq` installed; age private key present; `.sops.yaml` not a placeholder; `vault.sops.yaml` exists and is encrypted; vault decrypts and contains at least one identity. Each `[FAIL]` line shows the exact fix command. Also runs automatically as step 2 of `task install`.
 
 ### Day-to-day secrets workflow
 
 | task | what it does |
 |---|---|
-| `task secrets:edit` | Opens `vault.yml` in `$EDITOR`; SOPS decrypts before and re-encrypts on save |
-| `task secrets:decrypt` | Decrypts `vault.yml` → `.env` using `sops decrypt --output-type dotenv` |
+| `task secrets:edit` | Opens `vault.sops.yaml` in `$EDITOR`; SOPS decrypts before and re-encrypts on save |
+| `task secrets:envgen` | Generates a flat `.env` from vault (for tools that need `KEY=VALUE` format) |
 | `task secrets:keygen` | Generates a new age key at `~/.config/sops/age/keys.txt`; prints the public key |
-| `task secrets:encrypt-env` | One-time migration: converts an existing `.env` into an encrypted `vault.yml` |
-| `task repos:git-credentials` | Writes `~/.netrc` and `~/.gitconfig` url rewrites from vault secrets |
+| `task repos:git-credentials` | Writes `~/.git-credentials` and per-identity gitconfig files from vault |
 
-Never edit `vault.yml` directly with a text editor.
+Never edit `vault.sops.yaml` directly with a text editor.
 
-To add a new secret: `task secrets:edit`, add the key, save, then `task secrets:decrypt` to refresh `.env`.
+To add or change a secret: `task secrets:edit`, edit the YAML, save. Tasks read the vault at runtime — no extra decrypt step needed.
 
-### Using vault secrets as go-task template vars
+### Flat .env for external tooling
 
-The root `Taskfile.yml` includes `dotenv: ["$HOME/.taskfiles/.env"]`. Once `secrets:decrypt` has been run, all keys from `.env` are available as `{{.VAR_NAME}}` template vars in any task — including those in included taskfiles like `repos.yml`. This is how account config values (`dir_prefix`, `host_alias`, `url_prefix`) are kept out of `repos.yml` and stored encrypted in vault instead.
-
-**Path note:** The dotenv path uses `{{.HOME}}/.taskfiles/.env` (go template syntax). Do NOT use `$HOME` here — go-task does NOT expand shell env vars in `dotenv:` paths, only `{{.HOME}}` works. A wrong path silently fails to load and all dotenv vars appear empty.
-
-### go-task dotenv limitation
-
-`dotenv` is read once at process startup. If a task writes `.env` during a run (e.g., `secrets:decrypt` inside `task install`), subsequent tasks in the same invocation won't see the new values via `dotenv`. This is why `git-config` explicitly sources `{{.ENV_FILE}}` in its shell steps rather than relying on go-task's dotenv mechanism.
+If a tool needs a flat `KEY=VALUE` file, run `task secrets:envgen`. It generates `~/.taskfiles/.env` (gitignored) with one entry per string field per identity, using the naming convention `GITHUB_<NAME_UPPER>_<FIELD_UPPER>=value`. Repos lists are skipped (not representable as flat values). This file is ephemeral — regenerate it after any vault edit.
 
 ---
 
 ## Age key management
 
-The age private key (`~/.config/sops/age/keys.txt`) must exist before `task secrets:decrypt` can run. It is never committed. Back it up to a password manager.
+The age private key (`~/.config/sops/age/keys.txt`) must exist before any `sops -d` call can succeed. It is never committed. Back it up to a password manager.
 
 ### Restoring an existing key (common case)
 
@@ -172,14 +189,14 @@ cd ~/.taskfiles && task install
 
 ### Generating a new key (no backup exists)
 
-Only do this if you have no backup. A new key cannot decrypt the existing `vault.yml` until it is re-encrypted.
+Only do this if you have no backup. A new key cannot decrypt the existing `vault.sops.yaml` until it is re-encrypted.
 
 ```sh
 cd ~/.taskfiles
 task secrets:keygen
 # 1. Add the printed public key to .sops.yaml
-# 2. On a machine with the OLD key: sops updatekeys vault.yml
-# 3. Commit .sops.yaml and the re-encrypted vault.yml
+# 2. On a machine with the OLD key: sops updatekeys vault.sops.yaml
+# 3. Commit .sops.yaml and the re-encrypted vault.sops.yaml
 task install
 ```
 
@@ -187,6 +204,6 @@ task install
 
 ## Pre-commit hook
 
-`hooks/pre-commit` blocks staging `vault.yml` if it lacks the `sops:` metadata marker that SOPS always writes into encrypted files. The hook source is version-controlled in `hooks/`; `task hooks` (called by `task install`) copies it into `.git/hooks/`.
+`hooks/pre-commit` blocks staging `vault.sops.yaml` if it lacks the `sops:` metadata marker that SOPS always writes into encrypted files. The hook source is version-controlled in `hooks/`; `task hooks` (called by `task install`) copies it into `.git/hooks/`.
 
-If the hook fires unexpectedly, `vault.yml` has lost its encryption — run `sops -e -i vault.yml` to re-encrypt before committing.
+If the hook fires unexpectedly, `vault.sops.yaml` has lost its encryption — run `sops -e -i vault.sops.yaml` to re-encrypt before committing.
