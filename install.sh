@@ -62,7 +62,7 @@ Next steps:
      Or generate a new key (only if you have no backup):
        cd ${TASKFILES_DIR} && task secrets:keygen
        # then update .sops.yaml with the printed public key
-       # and re-encrypt vault.yml on a machine with the old key
+       # and re-encrypt vault.sops.yaml on a machine with the old key
 
   2. Run the full installer:
        cd ${TASKFILES_DIR} && task install
