@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 set -e
 
-REPO="eclipse-score/score-task-template"
+REPO="nick-hildebrant-etas/score-task-template"
 BRANCH="main"
-TASKFILES_DIR="${HOME}/.taskfiles"
+TASKFILES_DIR="${HOME}/.score-task"
 RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 TASKFILE_URL="${RAW_BASE}/Taskfile.yml"
 

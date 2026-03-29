@@ -11,8 +11,8 @@ tasks:
       vault_file: '{{.vault_file | default (printf "%s/.taskfiles/vault.sops.yaml" .HOME)}}'
       default_identity: '{{.default_identity | default "score"}}'
     deps:
-      - task: secrets:check-key
-      - task: secrets:check-yq
+      - task: check-key
+      - task: check-yq
     cmds:
       - |
         vault=$(sops -d "{{.vault_file}}")
@@ -40,7 +40,7 @@ tasks:
           git config --global "includeIf.gitdir:${dir}/.path" "$cfg"
           echo "configured: ${name} (${dir})"
         done
-      - git config --global credential.helper store
+      - git config --global --replace-all credential.helper store
       - |
         vault=$(sops -d "{{.vault_file}}")
         default_name="{{.default_identity}}"
@@ -59,8 +59,8 @@ tasks:
       repo_lines:
         sh: sops -d "{{.vault_file}}" | yq '.identities[] | (.dir + "\t" + .repos[])'
     deps:
-      - task: secrets:check-key
-      - task: secrets:check-yq
+      - task: check-key
+      - task: check-yq
     cmds:
       - for: {var: repo_lines, split: "\n"}
         cmd: |
@@ -83,8 +83,8 @@ tasks:
       repo_lines:
         sh: sops -d "{{.vault_file}}" | yq '.identities[] | (.dir + "\t" + .repos[])'
     deps:
-      - task: secrets:check-key
-      - task: secrets:check-yq
+      - task: check-key
+      - task: check-yq
     cmds:
       - for: {var: repo_lines, split: "\n"}
         cmd: |
@@ -127,8 +127,8 @@ tasks:
     vars:
       vault_file: '{{.vault_file | default (printf "%s/.taskfiles/vault.sops.yaml" .HOME)}}'
     deps:
-      - task: secrets:check-key
-      - task: secrets:check-yq
+      - task: check-key
+      - task: check-yq
     cmds:
       - |
         vault=$(sops -d "{{.vault_file}}")
@@ -150,8 +150,8 @@ tasks:
     vars:
       vault_file: '{{.vault_file | default (printf "%s/.taskfiles/vault.sops.yaml" .HOME)}}'
     deps:
-      - task: secrets:check-key
-      - task: secrets:check-yq
+      - task: check-key
+      - task: check-yq
     cmds:
       - |
         vault=$(sops -d "{{.vault_file}}")
@@ -191,8 +191,8 @@ tasks:
     vars:
       vault_file: '{{.vault_file | default (printf "%s/.taskfiles/vault.sops.yaml" .HOME)}}'
     deps:
-      - task: secrets:check-key
-      - task: secrets:check-yq
+      - task: check-key
+      - task: check-yq
     cmds:
       - |
         FAILED=0
@@ -257,3 +257,19 @@ tasks:
           exit 1
         fi
         printf "All checks passed.\n\n"
+
+  check-key:
+    internal: true
+    vars:
+      age_key_file: '{{.age_key_file | default (printf "%s/.config/sops/age/keys.txt" .HOME)}}'
+    preconditions:
+      - sh: test -f "{{.age_key_file}}"
+        msg: |
+          Age private key not found at {{.age_key_file}}.
+          Run 'task secrets:doctor' for full diagnostics.
+
+  check-yq:
+    internal: true
+    preconditions:
+      - sh: command -v yq
+        msg: "yq not found — run: task brew"
