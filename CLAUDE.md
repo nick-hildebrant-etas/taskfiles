@@ -32,7 +32,7 @@ The `install` task runs in this order — ordering is load-bearing:
 
 1. `brew` — installs packages from `Brewfile`, including `age`, `sops`, and `yq`
 2. `secrets:doctor` — checks all secrets prerequisites; prints actionable help and exits 1 if anything is wrong
-3. `repos:git-credentials` — decrypts `vault.sops.yaml` and writes per-identity `~/.gitconfig-<name>` files and `includeIf` gitconfig entries
+3. `repos:git-credentials` — decrypts `vault.sops.yaml`; writes `~/.git-credentials`, per-identity `~/.gitconfig-<name>` files, `includeIf` gitconfig entries, and sets global `credential.helper = store` (removing `osxkeychain`)
 4. `link` — symlinks dotfiles and `~/Taskfile.yml`
 5. `hooks` — copies `hooks/pre-commit` into `.git/hooks/`
 
@@ -125,6 +125,39 @@ See `vault.sops.yaml.example` for a complete annotated example. The fields used 
 | `git_name` | `git-credentials` (per-identity gitconfig, global fallback) |
 | `dir` | `git-credentials` (includeIf path), `clone`/`pull`/`fetch`/`status` |
 | `repos[]` | `clone`, `pull`, `fetch`, `status`, `list`, `ws-generate` |
+
+### Git credential setup
+
+`task repos:git-credentials` sets up HTTPS authentication for multiple GitHub accounts. The approach uses `git credential store` with per-identity username routing — **not** `osxkeychain`, path-based lookup (`useHttpPath`), or fake hostnames.
+
+**What it writes:**
+
+`~/.git-credentials` — one entry per identity:
+```
+https://user1:token1@github.com
+https://user2:token2@github.com
+```
+
+`~/.gitconfig-<name>` — included via `[includeIf "gitdir:<dir>/"]`, with three credential keys that work together:
+```ini
+[credential "https://github.com"]
+    username = user1           # tells store which entry to select
+[credential]
+    helper =                   # resets osxkeychain inherited from broader includeIf blocks
+    helper = store             # only active helper inside this identity's dir
+```
+
+Global `~/.gitconfig`:
+```ini
+[credential]
+    helper = store             # store only — osxkeychain removed; useHttpPath unset
+```
+
+**Why the empty `helper =` is necessary:** macOS Git ships with `osxkeychain` in the system gitconfig. Any broader `[includeIf]` (e.g. `gitdir:/Users/user/code/`) may also inject `osxkeychain`. Since git evaluates credential helpers in order, `osxkeychain` would be tried first and return the wrong identity. Setting `helper =` in the per-identity gitconfig clears all previously accumulated helpers before adding `store`.
+
+**Why `credential.username` works:** `git credential store` matches entries in `~/.git-credentials` by protocol, host, and (if set) username. With `username` set in the per-dir gitconfig, store skips other identities' entries for the same host and returns the right token.
+
+---
 
 ### Reading vault data in tasks
 

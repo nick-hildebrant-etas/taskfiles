@@ -82,3 +82,16 @@ Secrets live in `vault.sops.yaml` as structured YAML. Tasks decrypt on-demand wi
 | `.sops.yaml` | yes | only contains public key |
 | `.env` | no | optional flat export from `task secrets:envgen`, gitignored |
 | `~/.config/sops/age/keys.txt` | never | your private key |
+
+## git credentials
+
+`task repos:git-credentials` configures HTTPS authentication for multiple GitHub accounts without relying on the macOS keychain. It writes:
+
+- `~/.git-credentials` — one `https://user:token@github.com` entry per identity
+- `~/.gitconfig-<name>` — per-identity gitconfig included via `[includeIf "gitdir:<dir>/"]`, containing:
+  - `credential.username = <user>` — tells `git credential store` which entry to use for this identity
+  - `credential.helper = ` (empty) — resets any `osxkeychain` or other helpers inherited from broader `includeIf` blocks
+  - `credential.helper = store` — only active helper for repos in this identity's directory
+- Global `~/.gitconfig` — `credential.helper = store` only; `useHttpPath` is unset
+
+This means git always uses `store`, never `osxkeychain`, and the correct token is selected per-repo via `credential.username` in the directory-scoped gitconfig.
